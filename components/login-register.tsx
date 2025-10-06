@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { LogoBanko } from "./ui/logo-banko";
 
 const { colors, radius, fontFamily } = themeLight;
 
@@ -44,6 +45,12 @@ export default function LoginRegisterScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={{ 
+    alignItems: "center",
+    marginBottom: 16,   // espaço abaixo do logo
+  }}>
+      <LogoBanko variant="full" size={200} />
+      </View>
       <Text style={styles.title}>{isLogin ? "Entrar" : "Cadastre-se"}</Text>
       {!isLogin && (
         <>
@@ -106,8 +113,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: colors.primary,
-    marginBottom: 24,
+    color: colors.black,
+    marginBottom: 12,
     textAlign: "center",
     fontFamily: fontFamily.sans,
   },
