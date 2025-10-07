@@ -19,7 +19,11 @@ const MAPPING = {
   person: "person",
   list: "list",
   "card-plus-outline": "add-card",
-} as const satisfies Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
+  pencil: "drive-file-rename-outline",
+} as const satisfies Record<
+  string,
+  ComponentProps<typeof MaterialIcons>["name"]
+>;
 
 type IconSymbolName = keyof typeof MAPPING;
 

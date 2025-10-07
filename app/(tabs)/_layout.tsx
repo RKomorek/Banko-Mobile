@@ -13,6 +13,10 @@ import { ActivityIndicator, useColorScheme, View } from "react-native";
 import LoginRegisterScreen from "../../components/login-register";
 import { auth } from "../../firebase";
 
+export type RootStackParamList = {
+  "transaction-form": { initialValues?: any } | undefined;
+};
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -74,7 +78,7 @@ export default function RootLayout() {
           options={{
             title: "Nova transação",
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="card-plus-outline" color={color} />
+              <IconSymbol size={28} name="pencil" color={color} />
             ),
           }}
         />
