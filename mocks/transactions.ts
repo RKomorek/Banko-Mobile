@@ -38,7 +38,7 @@ export const mockTransactions: Transaction[] = BASE_TRANSACTIONS.map((transactio
   date: new Date(transaction.date),
 }));
 
-export function filterMockTransactions(
+export function filterTransactionsByFilters(
   transactions: Transaction[],
   filters: TransactionFilters
 ): Transaction[] {
@@ -67,11 +67,11 @@ export function filterMockTransactions(
   });
 }
 
-export function orderMockTransactions(transactions: Transaction[]) {
+export function orderTransactionsByDate(transactions: Transaction[]) {
   return [...transactions].sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-export function applyMockPagination(
+export function paginateTransactions(
   transactions: Transaction[],
   offset: number,
   limit: number

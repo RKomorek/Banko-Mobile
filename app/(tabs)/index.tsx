@@ -24,7 +24,6 @@ export default function HomeScreen() {
     surname?: string;
     email?: string;
   } | null>(null);
-  const [loading, setLoading] = useState(true);
   const screenWidth = Dimensions.get("window").width - 28;
 
   useEffect(() => {
@@ -35,7 +34,6 @@ export default function HomeScreen() {
         const snap = await getDoc(docRef);
         setUserInfo({ email: user.email, ...snap.data() } as any);
       }
-      setLoading(false);
     };
     fetchUser();
   }, []);
