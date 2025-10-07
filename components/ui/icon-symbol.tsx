@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'repeat': 'repeat',
   'person': 'person',
+  'pencil': 'drive-file-rename-outline',
 } as IconMapping;
 
 /**

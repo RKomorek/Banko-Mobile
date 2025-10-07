@@ -132,7 +132,7 @@ export default function LoginRegisterScreen() {
         {loading ? (
           <ActivityIndicator color={theme.primaryForeground} />
         ) : (
-          <Text style={[styles.buttonText,{color:theme.foreground}]}>
+          <Text style={[styles.buttonText,{color:theme.background}]}>
             {isLogin ? "Entrar" : "Criar conta"}
           </Text>
         )}

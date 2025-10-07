@@ -10,6 +10,7 @@ import {
 import { Colors } from "@/constants/theme";
 import { yupResolver } from "@hookform/resolvers/yup";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { getDocumentAsync } from "expo-document-picker";
 import {
   addDoc,
@@ -80,6 +81,11 @@ export default function TransactionForm({
 }: TransactionFormProps) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
+  const route = useRoute();
+  const navigation = useNavigation();
+  const mergedInitialValues =
+    initialValues || (route.params && (route.params as any).initialValues);
+
   const {
     control,
     handleSubmit,
@@ -88,7 +94,7 @@ export default function TransactionForm({
     watch,
   } = useForm<TransactionFormValues>({
     resolver: yupResolver(schema),
-    defaultValues: initialValues || {
+    defaultValues: mergedInitialValues || {
       title: "",
       amount: 0,
       type: "cartao",
@@ -96,10 +102,29 @@ export default function TransactionForm({
       isNegative: false,
     },
   });
+
+  React.useEffect(() => {
+    if (mergedInitialValues) {
+      reset({
+        title: mergedInitialValues.title || "",
+        amount: Math.abs(mergedInitialValues.amount) || 0,
+        type: mergedInitialValues.type || "cartao",
+        date: mergedInitialValues.date
+          ? typeof mergedInitialValues.date === "string"
+            ? mergedInitialValues.date
+            : typeof mergedInitialValues.date === "object" && "seconds" in mergedInitialValues.date
+              ? new Date((mergedInitialValues.date as { seconds: number }).seconds * 1000).toISOString().slice(0, 10)
+              : new Date(mergedInitialValues.date as Date).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10),
+        isNegative: mergedInitialValues.isNegative ?? false,
+      });
+    }
+  }, [mergedInitialValues, reset]);
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [receiptUri, setReceiptUri] = useState<string | null>(
-    initialValues?.receiptUrl || null
+    mergedInitialValues?.receiptUrl || null
   );
   function formatDate(dateString: string) {
     if (!dateString) return "";
@@ -123,11 +148,15 @@ export default function TransactionForm({
     boleto: "Boleto",
     pix: "Pix",
   };
+
+  // Atualiza o valor mascarado ao editar ou criar
   React.useEffect(() => {
-    if (initialValues?.amount) {
-      setAmountMasked(String(Math.round(Math.abs(initialValues.amount * 100))));
+    if (mergedInitialValues?.amount !== undefined) {
+      setAmountMasked(String(Math.round(Math.abs(mergedInitialValues.amount * 100))));
+    } else {
+      setAmountMasked("");
     }
-  }, [initialValues]);
+  }, [mergedInitialValues?.amount]);
 
   function formatCurrencyMasked(text: string) {
     const number = Number(text || "0");
@@ -168,7 +197,7 @@ export default function TransactionForm({
       await uploadBytes(storageRef, blob);
       const url = await getDownloadURL(storageRef);
       return url;
-    } catch (err:any) {
+    } catch (err: any) {
       Toast.show({
         type: "error",
         text1: "Erro ao fazer upload do recibo",
@@ -180,16 +209,19 @@ export default function TransactionForm({
     }
   };
 
+  const goToList = () => {
+    navigation.goBack();
+  };
+
   const onSubmit: SubmitHandler<TransactionFormValues> = async (data) => {
     try {
       setUploading(true);
       const user = auth.currentUser;
       if (!user) throw new Error("Usuário não autenticado!");
-      const isNegative = data.isNegative === true || data.amount < 0;
       const amount = Math.abs(data.amount) * (isNegative ? -1 : 1);
 
-      let receiptUrl = initialValues?.receiptUrl || null;
-      if (receiptUri && receiptUri !== initialValues?.receiptUrl) {
+      let receiptUrl = mergedInitialValues?.receiptUrl || null;
+      if (receiptUri && receiptUri !== mergedInitialValues?.receiptUrl) {
         const uploaded = await uploadReceiptToFirebase(receiptUri);
         if (uploaded) receiptUrl = uploaded;
       }
@@ -202,10 +234,11 @@ export default function TransactionForm({
         receiptUrl: receiptUrl || null,
         updatedAt: serverTimestamp(),
         userId: user.uid,
+        isNegative: data.isNegative,
       };
 
-      if (initialValues?.id) {
-        const txRef = doc(db, "transactions", initialValues.id);
+      if (mergedInitialValues?.id) {
+        const txRef = doc(db, "transactions", mergedInitialValues.id);
         await updateDoc(txRef, payload);
       } else {
         const txCollection = collection(db, "transactions");
@@ -215,6 +248,7 @@ export default function TransactionForm({
         });
       }
       onSaved();
+      goToList();
     } catch (err) {
       console.error("Erro ao salvar transação:", err);
       Toast.show({
@@ -227,6 +261,14 @@ export default function TransactionForm({
     }
   };
 
+  const handleCancel = () => {
+    reset();
+    setAmountMasked("");
+    setReceiptUri(null);
+    onCancel();
+    goToList();
+  };
+
   return (
     <SafeAreaWrapper backgroundColor={theme.background}>
       <KeyboardAvoidingView
@@ -237,7 +279,7 @@ export default function TransactionForm({
         <View style={styles.content}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: theme.foreground }]}>
-              {initialValues ? "Editar transação" : "Nova transação"}
+              {mergedInitialValues ? "Editar transação" : "Nova transação"}
             </Text>
             <Text style={[styles.cardDescription, { color: theme.foreground }]}>
               Escolha o método de pagamento e insira o valor.
@@ -254,17 +296,16 @@ export default function TransactionForm({
                 render={({ field: { onChange, value } }) => (
                   <TouchableOpacity
                     style={[
-                      [styles.radioItem,{borderColor: theme.foreground}],
-                      value === type && {borderColor: theme.primary, backgroundColor: theme.card}
-                      ]}
+                      [styles.radioItem, { borderColor: theme.border }],
+                      value === type && { borderColor: theme.primary, backgroundColor: theme.card },
+                    ]}
                     activeOpacity={0.8}
                     onPress={() => onChange(type)}
                   >
                     {paymentIcons[type]}
                     <Text
                       style={[
-                        [styles.radioLabel,{color: theme.foreground}],
-                        value === type && {color: theme.primary}
+                        [styles.radioLabel, { color: theme.foreground }]
                       ]}
                     >
                       {paymentLabels[type]}
@@ -287,8 +328,8 @@ export default function TransactionForm({
                 <>
                   <TouchableOpacity
                     style={[
-                      [styles.movingTypeBtn,{borderColor: theme.border}],
-                      !value && {borderColor: theme.constructive,backgroundColor: theme.card},
+                      [styles.movingTypeBtn, { borderColor: theme.border }],
+                      !value && { borderColor: theme.constructive, backgroundColor: theme.card },
                     ]}
                     onPress={() => onChange(false)}
                   >
@@ -302,8 +343,8 @@ export default function TransactionForm({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
-                      [styles.movingTypeBtn,{borderColor: theme.border}],
-                      value && {borderColor: theme.destructive,backgroundColor: theme.card},
+                      [styles.movingTypeBtn, { borderColor: theme.border }],
+                      value && { borderColor: theme.destructive, backgroundColor: theme.card },
                     ]}
                     onPress={() => onChange(true)}
                   >
@@ -329,7 +370,7 @@ export default function TransactionForm({
                 <Text style={[styles.label, { color: theme.foreground }]}>Valor</Text>
                 <TextInput
                   style={[
-                    [styles.input,{ backgroundColor: theme.card, borderColor: theme.input}],
+                    [styles.input, { backgroundColor: theme.card, borderColor: theme.input }],
                     isNegative
                       ? { color: theme.destructive }
                       : { color: theme.constructive },
@@ -360,7 +401,7 @@ export default function TransactionForm({
               <>
                 <Text style={[styles.label, { color: theme.foreground }]}>Descrição</Text>
                 <TextInput
-                  style={[styles.input,{ backgroundColor: theme.card, borderColor: theme.input}]}
+                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input }]}
                   placeholderTextColor={theme.foreground}
                   placeholder="Descrição da transação"
                   value={value}
@@ -382,7 +423,7 @@ export default function TransactionForm({
                 <Text style={[styles.label, { color: theme.foreground }]}>Data</Text>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  style={[styles.input,{ backgroundColor: theme.card, borderColor: theme.input}]}
+                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input }]}
                   activeOpacity={0.8}
                 >
                   <Text
@@ -432,13 +473,8 @@ export default function TransactionForm({
 
           <View style={[styles.footerFixed, { backgroundColor: theme.background }]}>
             <TouchableOpacity
-              style={[styles.cancelButton,{backgroundColor:theme.card, borderColor:theme.primary}]}
-              onPress={() => {
-                reset();
-                setAmountMasked("");
-                setReceiptUri(null);
-                onCancel();
-              }}
+              style={[styles.cancelButton, { backgroundColor: theme.card, borderColor: theme.primary }]}
+              onPress={handleCancel}
               disabled={uploading}
             >
               <Text style={{ color: theme.primary, fontWeight: "bold", }}>
@@ -446,7 +482,7 @@ export default function TransactionForm({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, {backgroundColor:theme.primary}]}
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSubmit(
                 onSubmit as SubmitHandler<TransactionFormValues>
               )}
@@ -528,7 +564,7 @@ const styles = StyleSheet.create({
   },
   movingTypeLabel: {
     fontWeight: "600",
-    fontSize: 15,  
+    fontSize: 15,
   },
   label: {
     fontWeight: "600",
