@@ -1,6 +1,6 @@
+import { Colors } from "@/constants/theme";
 import React from "react";
-import { Image, ImageProps } from "react-native";
-import { useThemeContext } from "./theme";
+import { Image, ImageProps, useColorScheme } from "react-native";
 
 type LogoBankoProps = {
   variant?: "icon" | "full";
@@ -9,17 +9,20 @@ type LogoBankoProps = {
 };
 
 export function LogoBanko({ variant = "icon", size = 64, style }: LogoBankoProps) {
-  const { isDark } = useThemeContext();
+  const colorScheme = useColorScheme() ?? "light";
+  const theme = Colors[colorScheme];
 
   let source;
   if (variant === "icon") {
-    source = isDark
-      ? require("../../assets/images/logo-icon-dark.png")
-      : require("../../assets/images/logo-icon-light.png");
+    source =
+      colorScheme === "dark"
+        ? require("../../assets/images/logo-icon-dark.png")
+        : require("../../assets/images/logo-icon-light.png");
   } else {
-    source = isDark
-      ? require("../../assets/images/logo-full-dark.png")
-      : require("../../assets/images/logo-full-light.png");
+    source =
+      colorScheme === "dark"
+        ? require("../../assets/images/logo-full-dark.png")
+        : require("../../assets/images/logo-full-light.png");
   }
 
   return (

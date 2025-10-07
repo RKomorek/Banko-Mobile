@@ -2,8 +2,9 @@ import { themeDark, themeLight, useThemeContext } from "@/components/ui/theme";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { auth, db } from "../../firebase";
 
 export default function ProfileScreen() {
@@ -31,7 +32,11 @@ export default function ProfileScreen() {
     try {
       await signOut(auth);
     } catch {
-      Alert.alert("Erro", "Não foi possível sair.");
+      Toast.show({
+        type: "error",
+        text1: "Não foi possível sair",
+        text2: "Por favor, tente novamente mais tarde.",
+      });
     }
   };
 

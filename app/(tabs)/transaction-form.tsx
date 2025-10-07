@@ -1,10 +1,23 @@
 import { ReceiptUploadBox } from "@/components/receipt-upload-box";
-import { BanknoteArrowDown, BanknoteArrowUp, BoletoIcon, CartaoIcon, PixIcon } from "@/components/ui/icons-personalized";
-import { themeLight } from "@/components/ui/theme";
+import SafeAreaWrapper from "@/components/SafeAreaWrapper";
+import {
+  BanknoteArrowDown,
+  BanknoteArrowUp,
+  BoletoIcon,
+  CartaoIcon,
+  PixIcon,
+} from "@/components/ui/icons-personalized";
+import { Colors } from "@/constants/theme";
 import { yupResolver } from "@hookform/resolvers/yup";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { getDocumentAsync } from "expo-document-picker";
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import React, { JSX, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
@@ -17,17 +30,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  useColorScheme,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import * as yup from "yup";
 import { auth, db, storage } from "../../firebase";
-
-const {
-  colors,
-  radius,
-  fontFamily,
-} = themeLight;
 
 interface TransactionFormValues {
   title: string;
@@ -50,11 +58,18 @@ const schema = yup.object({
     .typeError("Valor deve ser número")
     .required("Valor obrigatório")
     .test("not-zero", "Valor não pode ser 0", (val) => val !== 0),
-  type: yup.string().oneOf(["cartao", "boleto", "pix"]).required("Tipo obrigatório"),
+  type: yup
+    .string()
+    .oneOf(["cartao", "boleto", "pix"])
+    .required("Tipo obrigatório"),
   date: yup
     .string()
     .required("Data obrigatória")
-    .test("is-date", "Data inválida", (value) => !isNaN(Date.parse(value || ""))),
+    .test(
+      "is-date",
+      "Data inválida",
+      (value) => !isNaN(Date.parse(value || ""))
+    ),
   isNegative: yup.boolean().required("Preencha"),
 });
 
@@ -63,6 +78,8 @@ export default function TransactionForm({
   onSaved = () => {},
   onCancel = () => {},
 }: TransactionFormProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const {
     control,
     handleSubmit,
@@ -81,7 +98,9 @@ export default function TransactionForm({
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [receiptUri, setReceiptUri] = useState<string | null>(initialValues?.receiptUrl || null);
+  const [receiptUri, setReceiptUri] = useState<string | null>(
+    initialValues?.receiptUrl || null
+  );
   function formatDate(dateString: string) {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -94,9 +113,9 @@ export default function TransactionForm({
   const isNegative = watch("isNegative");
   const [amountMasked, setAmountMasked] = useState("");
   const paymentIcons: Record<string, JSX.Element> = {
-    cartao: <CartaoIcon style={{ color: colors.foreground }} />,
-    boleto: <BoletoIcon style={{ color: colors.foreground }} />,
-    pix: <PixIcon style={{ color: colors.foreground }} />,
+    cartao: <CartaoIcon style={{ color: theme.foreground }} />,
+    boleto: <BoletoIcon style={{ color: theme.foreground }} />,
+    pix: <PixIcon style={{ color: theme.foreground }} />,
   };
 
   const paymentLabels: Record<string, string> = {
@@ -112,17 +131,27 @@ export default function TransactionForm({
 
   function formatCurrencyMasked(text: string) {
     const number = Number(text || "0");
-    return (number / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return (number / 100).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
   }
   const pickReceipt = async () => {
     try {
-      const res = await getDocumentAsync({ copyToCacheDirectory: true, type: "*/*" });
+      const res = await getDocumentAsync({
+        copyToCacheDirectory: true,
+        type: "*/*",
+      });
       if (res.canceled) return; // Não faz nada se cancelar
       if (res.assets && res.assets.length > 0) {
         setReceiptUri(res.assets[0].uri);
       }
     } catch {
-      alert("Erro ao selecionar recibo.");
+      Toast.show({
+        type: "error",
+        text1: "Erro ao selecionar recibo",
+        text2: "Por favor, tente novamente mais tarde.",
+      });
     }
   };
 
@@ -132,24 +161,30 @@ export default function TransactionForm({
     try {
       const response = await fetch(localUri);
       const blob = await response.blob();
-      const filename = `receipts/${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const filename = `receipts/${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 9)}`;
       const storageRef = ref(storage, filename);
       await uploadBytes(storageRef, blob);
       const url = await getDownloadURL(storageRef);
       return url;
-    } catch (err) {
-      alert("Erro ao fazer upload do recibo." + err);
+    } catch (err:any) {
+      Toast.show({
+        type: "error",
+        text1: "Erro ao fazer upload do recibo",
+        text2: err,
+      });
       return null;
     } finally {
       setUploading(false);
     }
   };
 
- const onSubmit: SubmitHandler<TransactionFormValues> = async (data) => {
-  try {
-    setUploading(true);
-    const user = auth.currentUser;
-    if (!user) throw new Error("Usuário não autenticado!");
+  const onSubmit: SubmitHandler<TransactionFormValues> = async (data) => {
+    try {
+      setUploading(true);
+      const user = auth.currentUser;
+      if (!user) throw new Error("Usuário não autenticado!");
       const isNegative = data.isNegative === true || data.amount < 0;
       const amount = Math.abs(data.amount) * (isNegative ? -1 : 1);
 
@@ -160,33 +195,40 @@ export default function TransactionForm({
       }
 
       const payload = {
-      title: data.title,
-      amount,
-      type: data.type,
-      date: new Date(data.date),
-      receiptUrl: receiptUrl || null,
-      updatedAt: serverTimestamp(),
-      userId: user.uid,
-    };
+        title: data.title,
+        amount,
+        type: data.type,
+        date: new Date(data.date),
+        receiptUrl: receiptUrl || null,
+        updatedAt: serverTimestamp(),
+        userId: user.uid,
+      };
 
-    if (initialValues?.id) {
-      const txRef = doc(db, "transactions", initialValues.id);
-      await updateDoc(txRef, payload);
-    } else {
-      const txCollection = collection(db, "transactions");
-      await addDoc(txCollection, { ...payload, createdAt: serverTimestamp() });
+      if (initialValues?.id) {
+        const txRef = doc(db, "transactions", initialValues.id);
+        await updateDoc(txRef, payload);
+      } else {
+        const txCollection = collection(db, "transactions");
+        await addDoc(txCollection, {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
+      }
+      onSaved();
+    } catch (err) {
+      console.error("Erro ao salvar transação:", err);
+      Toast.show({
+        type: "error",
+        text1: "Erro ao salvar transação.",
+        text2: "Por favor, tente novamente mais tarde.",
+      });
+    } finally {
+      setUploading(false);
     }
-    onSaved();
-  } catch (err) {
-    console.error("Erro ao salvar transação:", err);
-    alert("Erro ao salvar transação.");
-  } finally {
-    setUploading(false);
-  }
-};
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaWrapper backgroundColor={theme.background}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -194,10 +236,10 @@ export default function TransactionForm({
       >
         <View style={styles.content}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>
+            <Text style={[styles.cardTitle, { color: theme.foreground }]}>
               {initialValues ? "Editar transação" : "Nova transação"}
             </Text>
-            <Text style={styles.cardDescription}>
+            <Text style={[styles.cardDescription, { color: theme.foreground }]}>
               Escolha o método de pagamento e insira o valor.
             </Text>
           </View>
@@ -212,17 +254,19 @@ export default function TransactionForm({
                 render={({ field: { onChange, value } }) => (
                   <TouchableOpacity
                     style={[
-                      styles.radioItem,
-                      value === type && styles.radioItemActive,
-                    ]}
-                    onPress={() => onChange(type)}
+                      [styles.radioItem,{borderColor: theme.foreground}],
+                      value === type && {borderColor: theme.primary, backgroundColor: theme.card}
+                      ]}
                     activeOpacity={0.8}
+                    onPress={() => onChange(type)}
                   >
                     {paymentIcons[type]}
-                    <Text style={[
-                      styles.radioLabel,
-                      value === type && styles.radioLabelActive
-                    ]}>
+                    <Text
+                      style={[
+                        [styles.radioLabel,{color: theme.foreground}],
+                        value === type && {color: theme.primary}
+                      ]}
+                    >
                       {paymentLabels[type]}
                     </Text>
                   </TouchableOpacity>
@@ -230,7 +274,9 @@ export default function TransactionForm({
               />
             ))}
           </View>
-          {errors.type && <Text style={styles.error}>{errors.type.message}</Text>}
+          {errors.type && (
+            <Text style={[styles.error, { color: theme.destructive }]}>{errors.type.message}</Text>
+          )}
 
           {/* Entrada/Saída */}
           <View style={styles.movingTypeGroup}>
@@ -241,41 +287,33 @@ export default function TransactionForm({
                 <>
                   <TouchableOpacity
                     style={[
-                      styles.movingTypeBtn,
-                      !value && styles.movingTypeBtnActiveIn
+                      [styles.movingTypeBtn,{borderColor: theme.border}],
+                      !value && {borderColor: theme.constructive,backgroundColor: theme.card},
                     ]}
                     onPress={() => onChange(false)}
                   >
                     <BanknoteArrowUp
-                      color={colors.foreground}
+                      color={theme.foreground}
                       style={{ marginBottom: 4 }}
                       width={24}
                       height={24}
                     />
-                    <Text style={[
-                      styles.movingTypeLabel
-                    ]}>
-                      Entrada
-                    </Text>
+                    <Text style={[styles.movingTypeLabel, { color: theme.foreground }]}>Entrada</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
-                      styles.movingTypeBtn,
-                      value && styles.movingTypeBtnActiveOut
+                      [styles.movingTypeBtn,{borderColor: theme.border}],
+                      value && {borderColor: theme.destructive,backgroundColor: theme.card},
                     ]}
                     onPress={() => onChange(true)}
                   >
                     <BanknoteArrowDown
-                      color={colors.foreground}
+                      color={theme.foreground}
                       style={{ marginBottom: 4 }}
                       width={24}
                       height={24}
                     />
-                    <Text style={[
-                      styles.movingTypeLabel
-                    ]}>
-                      Saída
-                    </Text>
+                    <Text style={[styles.movingTypeLabel, { color: theme.foreground }]}>Saída</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -288,11 +326,13 @@ export default function TransactionForm({
             name="amount"
             render={({ field: { onChange } }) => (
               <>
-                <Text style={styles.label}>Valor</Text>
+                <Text style={[styles.label, { color: theme.foreground }]}>Valor</Text>
                 <TextInput
                   style={[
-                    styles.input,
-                    isNegative ? { color: colors.destructive } : { color: colors.constructive }
+                    [styles.input,{ backgroundColor: theme.card, borderColor: theme.input}],
+                    isNegative
+                      ? { color: theme.destructive }
+                      : { color: theme.constructive },
                   ]}
                   placeholder="R$ 0,00"
                   keyboardType="numeric"
@@ -302,10 +342,12 @@ export default function TransactionForm({
                     setAmountMasked(numeric);
                     onChange(Number(numeric) / 100);
                   }}
-                  placeholderTextColor={colors.primary}
+                  placeholderTextColor={theme.primary}
                   maxLength={17}
                 />
-                {errors.amount && <Text style={styles.error}>{errors.amount.message}</Text>}
+                {errors.amount && (
+                  <Text style={[styles.error, { color: theme.destructive }]}>{errors.amount.message}</Text>
+                )}
               </>
             )}
           />
@@ -316,14 +358,17 @@ export default function TransactionForm({
             name="title"
             render={({ field: { onChange, value } }) => (
               <>
-                <Text style={styles.label}>Descrição</Text>
+                <Text style={[styles.label, { color: theme.foreground }]}>Descrição</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input,{ backgroundColor: theme.card, borderColor: theme.input}]}
+                  placeholderTextColor={theme.foreground}
                   placeholder="Descrição da transação"
                   value={value}
                   onChangeText={onChange}
                 />
-                {errors.title && <Text style={styles.error}>{errors.title.message}</Text>}
+                {errors.title && (
+                  <Text style={[styles.error, { color: theme.destructive }]}>{errors.title.message}</Text>
+                )}
               </>
             )}
           />
@@ -334,13 +379,17 @@ export default function TransactionForm({
             name="date"
             render={({ field: { onChange, value } }) => (
               <>
-                <Text style={styles.label}>Data</Text>
+                <Text style={[styles.label, { color: theme.foreground }]}>Data</Text>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  style={styles.input}
+                  style={[styles.input,{ backgroundColor: theme.card, borderColor: theme.input}]}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ color: value ? colors.foreground : colors.primary }}>
+                  <Text
+                    style={{
+                      color: value ? theme.foreground : theme.primary,
+                    }}
+                  >
                     {value ? formatDate(value) : "Selecione a data"}
                   </Text>
                 </TouchableOpacity>
@@ -357,58 +406,69 @@ export default function TransactionForm({
                     }}
                   />
                 )}
-                {errors.date && <Text style={styles.error}>{errors.date.message}</Text>}
+                {errors.date && (
+                  <Text style={[styles.error, { color: theme.destructive }]}>{errors.date.message}</Text>
+                )}
               </>
             )}
           />
 
           {/* Upload de recibo */}
           <View style={{ marginVertical: 10 }}>
-           <ReceiptUploadBox
+            <ReceiptUploadBox
               onPress={pickReceipt}
               selected={!!receiptUri}
               fileName={receiptUri ? receiptUri.split("/").pop() : undefined}
             />
           </View>
 
-          {uploading && <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />}
+          {uploading && (
+            <ActivityIndicator
+              color={theme.primary}
+              style={{ marginVertical: 8 }}
+            />
+          )}
           {/* Botões fixos na base */}
 
-          <View style={styles.footerFixed}>
+          <View style={[styles.footerFixed, { backgroundColor: theme.background }]}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton,{backgroundColor:theme.card, borderColor:theme.primary}]}
               onPress={() => {
-                reset(); 
+                reset();
                 setAmountMasked("");
                 setReceiptUri(null);
-                onCancel(); 
+                onCancel();
               }}
               disabled={uploading}
             >
-              <Text style={{ color: colors.primary, fontWeight: "bold" }}>Cancelar</Text>
+              <Text style={{ color: theme.primary, fontWeight: "bold", }}>
+                Cancelar
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSubmit(onSubmit as SubmitHandler<TransactionFormValues>)}
+              style={[styles.saveButton, {backgroundColor:theme.primary}]}
+              onPress={handleSubmit(
+                onSubmit as SubmitHandler<TransactionFormValues>
+              )}
               disabled={uploading}
             >
-              <Text style={{ color: colors.primaryForeground, fontWeight: "bold" }}>
+              <Text
+                style={{ color: theme.primaryForeground, fontWeight: "bold" }}
+              >
                 Salvar
               </Text>
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
   content: {
     flex: 1,
     padding: 16,
-    backgroundColor: colors.background,
   },
   footerFixed: {
     flexDirection: "row",
@@ -416,7 +476,6 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    backgroundColor: colors.background,
     position: "absolute",
     left: 0,
     right: 0,
@@ -424,20 +483,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   cardHeader: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: radius,
-    borderTopRightRadius: radius,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   cardTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
   },
   cardDescription: {
     fontSize: 14,
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
   },
   radioGroup: {
     flexDirection: "row",
@@ -450,24 +504,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     padding: 12,
-    borderRadius: radius,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.border,
     marginHorizontal: 4,
-    backgroundColor: colors.muted,
-  },
-  radioItemActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.accent,
   },
   radioLabel: {
-    color: colors.foreground,
     fontWeight: "600",
     fontSize: 15,
-    fontFamily: fontFamily.sans,
-  },
-  radioLabelActive: {
-    color: colors.foreground,
   },
   movingTypeGroup: {
     flexDirection: "row",
@@ -479,52 +522,30 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     padding: 10,
-    borderRadius: radius,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.border,
     marginHorizontal: 4,
-    backgroundColor: colors.muted,
-  },
-  movingTypeBtnActiveIn: {
-    borderColor: colors.constructive,
-    backgroundColor: colors.accent,
-  },
-  movingTypeBtnActiveOut: {
-    borderColor: colors.destructive,
-    backgroundColor: colors.muted,
   },
   movingTypeLabel: {
     fontWeight: "600",
-    fontSize: 15,
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
+    fontSize: 15,  
   },
   label: {
     fontWeight: "600",
     fontSize: 15,
     marginTop: 12,
     marginBottom: 2,
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.input,
-    borderRadius: radius,
+    borderRadius: 8,
     padding: 10,
     marginVertical: 6,
-    backgroundColor: colors.card,
     fontSize: 16,
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
   },
-  error: { color: colors.destructive, fontSize: 12, marginBottom: 4 },
-  receiptButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radius,
-    padding: 12,
-    alignItems: "center",
-    marginVertical: 4,
+  error: {
+    fontSize: 12,
+    marginBottom: 4,
   },
   footer: {
     flexDirection: "row",
@@ -535,21 +556,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radius,
+    borderRadius: 8,
     padding: 14,
     flex: 1,
     alignItems: "center",
     marginLeft: 8,
   },
   cancelButton: {
-    backgroundColor: colors.card,
-    borderRadius: radius,
+    borderRadius: 8,
     padding: 14,
     flex: 1,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.primary,
     marginRight: 8,
   },
 });

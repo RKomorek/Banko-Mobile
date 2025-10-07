@@ -1,14 +1,26 @@
-import { themeLight } from "@/components/ui/theme";
+import { Colors } from "@/constants/theme";
 import { auth, db } from "@/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
+} from "react-native";
+import Toast from "react-native-toast-message";
 import { LogoBanko } from "./ui/logo-banko";
 
-const { colors, radius, fontFamily } = themeLight;
-
 export default function LoginRegisterScreen() {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,10 +34,18 @@ export default function LoginRegisterScreen() {
       if (isLogin) {
         // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
-        Alert.alert("Sucesso", "Login realizado!");
+        Toast.show({
+          type: 'success',
+          text1: 'Sucesso',
+          text2: 'Login realizado!',
+        });
       } else {
         // CADASTRO
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
         const user = userCredential.user;
         // Salva dados extras na coleção users
         await setDoc(doc(db, "users", user.uid), {
@@ -34,36 +54,51 @@ export default function LoginRegisterScreen() {
           email,
           createdAt: new Date(),
         });
-        Alert.alert("Sucesso", "Cadastro realizado!");
+        Toast.show({
+          type: 'success',
+          text1: 'Sucesso',
+          text2: 'Cadastro realizado!',
+        });
       }
     } catch (err: any) {
-      Alert.alert("Erro", err.message || "Erro ao autenticar.");
+      
+      Toast.show({
+        type: "error",
+        text1: "Erro ao autenticar",
+        text2: err.message,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={{ 
-    alignItems: "center",
-    marginBottom: 16,   // espaço abaixo do logo
-  }}>
-      <LogoBanko variant="full" size={200} />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View
+        style={{
+          alignItems: "center",
+          marginBottom: 16, // espaço abaixo do logo
+        }}
+      >
+        <LogoBanko variant="full" size={200} />
       </View>
-      <Text style={styles.title}>{isLogin ? "Entrar" : "Cadastre-se"}</Text>
+      <Text style={[styles.title, { color: theme.foreground }]}>
+        {isLogin ? "Entrar" : "Cadastre-se"}
+      </Text>
       {!isLogin && (
         <>
           <View style={styles.row}>
             <TextInput
-              style={[styles.input, styles.inputHalf, { marginRight: 6 }]}
+              style={[styles.input, {borderColor: theme.input,backgroundColor: theme.card,color: theme.foreground,flex:1 }]}
+              placeholderTextColor={theme.foreground}
               placeholder="Seu nome"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
             />
             <TextInput
-              style={[styles.input, styles.inputHalf, { marginLeft: 6 }]}
+              style={[styles.input, { borderColor: theme.input,backgroundColor: theme.card,color: theme.foreground,flex:1 }]}
+              placeholderTextColor={theme.foreground}
               placeholder="Seu sobrenome"
               value={surname}
               onChangeText={setSurname}
@@ -73,7 +108,8 @@ export default function LoginRegisterScreen() {
         </>
       )}
       <TextInput
-        style={styles.input}
+        style={[styles.input,{borderColor: theme.input,backgroundColor: theme.card,color: theme.foreground}]}
+        placeholderTextColor={theme.foreground}
         placeholder="E-mail"
         value={email}
         onChangeText={setEmail}
@@ -81,21 +117,28 @@ export default function LoginRegisterScreen() {
         autoCapitalize="none"
       />
       <TextInput
-        style={styles.input}
+        style={[styles.input,{borderColor: theme.input, backgroundColor: theme.card, color: theme.foreground}]}
+        placeholderTextColor={theme.foreground}
         placeholder="Senha"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
+      <TouchableOpacity
+        style={[styles.button,{backgroundColor:theme.primary}]}
+        onPress={handleAuth}
+        disabled={loading}
+      >
         {loading ? (
-          <ActivityIndicator color={colors.primaryForeground} />
+          <ActivityIndicator color={theme.primaryForeground} />
         ) : (
-          <Text style={styles.buttonText}>{isLogin ? "Entrar" : "Criar conta"}</Text>
+          <Text style={[styles.buttonText,{color:theme.foreground}]}>
+            {isLogin ? "Entrar" : "Criar conta"}
+          </Text>
         )}
       </TouchableOpacity>
       <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-        <Text style={styles.toggle}>
+        <Text style={[styles.toggle,{color:theme.foreground}]}>
           {isLogin ? "Não tem conta? Cadastre-se" : "Já tem uma conta? Entrar"}
         </Text>
       </TouchableOpacity>
@@ -106,54 +149,37 @@ export default function LoginRegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
     justifyContent: "center",
     padding: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: colors.black,
-    marginBottom: 12,
+    paddingBottom: 20,
     textAlign: "center",
-    fontFamily: fontFamily.sans,
   },
   row: {
     flexDirection: "row",
-    marginBottom: 14,
+    gap:10
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.input,
-    borderRadius: radius,
-    padding: 12,
-    backgroundColor: colors.card,
+    borderRadius: 8,
+    paddingLeft:12,
     fontSize: 16,
-    color: colors.foreground,
-    fontFamily: fontFamily.sans,
     marginBottom: 14,
   },
-  inputHalf: {
-    flex: 1,
-    marginBottom: 0,
-  },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius,
+    borderRadius: 8,
     padding: 14,
     alignItems: "center",
-    marginBottom: 12,
   },
   buttonText: {
-    color: colors.primaryForeground,
     fontWeight: "bold",
     fontSize: 16,
-    fontFamily: fontFamily.sans,
   },
   toggle: {
-    color: colors.primary,
+    marginTop:22,
     textAlign: "center",
-    marginTop: 8,
-    fontFamily: fontFamily.sans,
   },
 });

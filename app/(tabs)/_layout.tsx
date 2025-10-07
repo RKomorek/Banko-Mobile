@@ -11,6 +11,7 @@ import { auth } from "../../firebase";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +40,10 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+          tabBarStyle: {
+            backgroundColor: Colors[colorScheme ?? "light"].background,
+          },
+          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].primary,
           headerShown: false,
           tabBarButton: HapticTab,
         }}>
