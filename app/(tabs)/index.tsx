@@ -160,7 +160,7 @@ export default function HomeScreen() {
             }}
             width={screenWidth}
             height={220}
-            yAxisLabel="R$ "
+            yAxisLabel="R$"
             chartConfig={{
               backgroundGradientFrom: theme.background,
               backgroundGradientTo: theme.background,

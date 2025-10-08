@@ -447,7 +447,7 @@ export default function TransactionForm({
               <>
                 <Text style={[styles.label, { color: theme.foreground }]}>Descrição</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input }]}
+                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input, color:theme.foreground }]}
                   placeholderTextColor={theme.foreground}
                   placeholder="Descrição da transação"
                   value={value}

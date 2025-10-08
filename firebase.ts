@@ -4,12 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC3OKJFB5NhQn40RLmNhmbA8q6bkbLaGeg",
-  authDomain: "banko-9292b.firebaseapp.com",
-  projectId: "banko-9292b",
-  storageBucket: "banko-9292b.firebasestorage.app",
-  messagingSenderId: "442249103199",
-  appId: "1:442249103199:web:5e1740ceeb791a908e58ea"
+  apiKey: "***",
+  authDomain: "***",
+  projectId: "***",
+  storageBucket: "***",
+  messagingSenderId: "***",
+  appId: "***"
 };
 
 const app = initializeApp(firebaseConfig);
