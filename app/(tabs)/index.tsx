@@ -4,7 +4,7 @@ import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Colors } from "@/constants/theme";
 import { auth, db } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   Dimensions,
@@ -25,7 +25,16 @@ export default function HomeScreen() {
     email?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState<string>("0.00");
+  const [chartData, setChartData] = useState<{ labels: string[]; entradas: number[]; saidas: number[] }>({
+    labels: [],
+    entradas: [],
+    saidas: [],
+  });
   const screenWidth = Dimensions.get("window").width - 28;
+   const formatCurrency = (value: string | number) =>
+    `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -34,6 +43,43 @@ export default function HomeScreen() {
         const docRef = doc(db, "users", user.uid);
         const snap = await getDoc(docRef);
         setUserInfo({ email: user.email, ...snap.data() } as any);
+
+        // Busca saldo da conta
+        const accQ = query(collection(db, "accounts"), where("user_id", "==", user.uid));
+        const accSnap = await getDocs(accQ);
+        if (!accSnap.empty) {
+          setBalance(accSnap.docs[0].data().saldo || "0.00");
+        }
+
+        // Busca transações do usuário
+        const txQ = query(collection(db, "transactions"), where("userId", "==", user.uid));
+        const txSnap = await getDocs(txQ);
+
+        // Agrupa por mês
+        const entradas: { [key: string]: number } = {};
+        const saidas: { [key: string]: number } = {};
+        const meses: Set<string> = new Set();
+
+        txSnap.forEach((doc) => {
+          const tx = doc.data();
+          const date = tx.date?.toDate ? tx.date.toDate() : new Date(tx.date);
+          const mes = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+          meses.add(mes);
+          if (tx.isNegative) {
+            saidas[mes] = (saidas[mes] || 0) + Math.abs(tx.amount);
+          } else {
+            entradas[mes] = (entradas[mes] || 0) + Math.abs(tx.amount);
+          }
+        });
+
+        // Ordena meses
+        const mesesOrdenados = Array.from(meses).sort();
+
+        setChartData({
+          labels: mesesOrdenados,
+          entradas: mesesOrdenados.map((m) => entradas[m] || 0),
+          saidas: mesesOrdenados.map((m) => saidas[m] || 0),
+        });
       }
       setLoading(false);
     };
@@ -42,14 +88,14 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaWrapper backgroundColor={theme.background}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
         <View style={styles.container}>
           <Card
-            style={{ backgroundColor: theme.card, borderColor: theme.border }}
+            style={{ backgroundColor: theme.card, borderColor: theme.border, marginBottom: -15  }}
           >
             <CardHeader>
               <CardTitle style={{ color: theme.foreground, fontSize: 28 }}>
-                Olá, {userInfo?.name}!<HelloWave />
+                Olá, {userInfo?.name}! <HelloWave />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -69,7 +115,7 @@ export default function HomeScreen() {
           >
             <CardHeader>
               <CardTitle style={{ color: theme.foreground }}>
-                Saldo Atual
+                Saldo atual
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -77,12 +123,12 @@ export default function HomeScreen() {
                 style={{
                   color: theme.foreground,
                   fontSize: 24,
-                  fontWeight: 700,
+                  fontWeight: "700",
                 }}
               >
-                R$ 100
+                {formatCurrency(balance)}
               </Text>
-              <Text style={{ color: theme.foreground, fontSize: 10 }}>
+              <Text style={{ color: theme.foreground, fontSize: 12 }}>
                 Saldo disponível em sua conta
               </Text>
             </CardContent>
@@ -98,24 +144,23 @@ export default function HomeScreen() {
         >
           <LineChart
             data={{
-              labels: ["January", "February", "March", "April", "May", "June"],
+              labels: chartData.labels.length > 0 ? chartData.labels : ["Sem dados"],
               datasets: [
                 {
-                  data: [50, 80, 40, 95, 85, 70], // Entradas
-                  color: (opacity = 1) => `rgba(0, 255, 0, ${opacity})`, // linha verde
-                  strokeWidth: 2, // espessura da linha
+                  data: chartData.entradas.length > 0 ? chartData.entradas : [0],
+                  color: (opacity = 1) => `rgba(0, 255, 0, ${opacity})`,
+                  strokeWidth: 2,
                 },
                 {
-                  data: [30, 60, 20, 80, 60, 50], // Saídas
-                  color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`, // linha vermelha
+                  data: chartData.saidas.length > 0 ? chartData.saidas : [0],
+                  color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`,
                   strokeWidth: 2,
                 },
               ],
             }}
             width={screenWidth}
             height={220}
-            yAxisLabel="$"
-            yAxisSuffix="k"
+            yAxisLabel="R$ "
             chartConfig={{
               backgroundGradientFrom: theme.background,
               backgroundGradientTo: theme.background,
@@ -150,6 +195,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 14,
+    flex: 1,
   },
   button: {
     borderRadius: 8,

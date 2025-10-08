@@ -1,42 +1,52 @@
 import { Colors } from "@/constants/theme";
+import { auth, db } from "@/firebase";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    useColorScheme,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
 } from "react-native";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-
-// Dados mockados
-const mockTransactions = [
-  { data: "2025-10-01", movimentacao: "entrada", valor: 500, tipo: "Pix" },
-  { data: "2025-10-03", movimentacao: "saida", valor: 200, tipo: "Cartão" },
-  { data: "2025-10-05", movimentacao: "entrada", valor: 700, tipo: "Pix" },
-  { data: "2025-09-15", movimentacao: "saida", valor: 100, tipo: "Dinheiro" },
-  { data: "2025-09-20", movimentacao: "entrada", valor: 300, tipo: "Cartão" },
-  { data: "2025-09-25", movimentacao: "saida", valor: 150, tipo: "Pix" },
-];
 
 export function FinancialMetrics() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simula fetch
-    setTimeout(() => {
-      setTransactions(mockTransactions as typeof transactions);
+    const fetchTransactions = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
+      const txQ = query(collection(db, "transactions"), where("userId", "==", user.uid));
+      const txSnap = await getDocs(txQ);
+      const txs = txSnap.docs.map((doc) => {
+        const tx = doc.data();
+        // Normaliza os dados para o formato esperado
+        return {
+          data: tx.date?.toDate ? tx.date.toDate() : new Date(tx.date),
+          movimentacao: tx.isNegative ? "saida" : "entrada",
+          valor: Math.abs(tx.amount),
+          tipo: tx.type,
+        };
+      });
+      setTransactions(txs);
       setLoading(false);
-    }, 1000);
+    };
+    fetchTransactions();
   }, []);
 
-  const formatCurrency = (value: any) => `R$ ${value.toFixed(2)}`;
+  const formatCurrency = (value: any) => `R$ ${Number(value).toFixed(2)}`;
 
   const getMetrics = () => {
     if (!transactions.length) return {};
@@ -59,9 +69,8 @@ export function FinancialMetrics() {
       return date.getMonth() === prevMonth && date.getFullYear() === prevYear;
     });
 
-    // Definindo tipos explícitos para evitar erros de tipagem
     type Transacao = {
-      data: string;
+      data: Date;
       movimentacao: string;
       valor: number;
       tipo: string;
@@ -120,7 +129,7 @@ export function FinancialMetrics() {
   if (loading) {
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>Métricas Financeiras</Text>
+        <Text style={styles.title}>Métricas financeiras</Text>
         <ActivityIndicator size="large" color="#000" />
       </View>
     );
@@ -132,7 +141,7 @@ export function FinancialMetrics() {
         <CardHeader>
           <CardTitle>
             <Text style={[styles.title, { color: theme.foreground }]}>
-              Métricas Financeiras
+              Métricas financeiras
             </Text>
           </CardTitle>
           <Text style={[styles.description, { color: theme.foreground }]}>
@@ -145,11 +154,11 @@ export function FinancialMetrics() {
             <View style={styles.metricHeader}>
               <FontAwesome6 name="arrow-trend-up" size={20} color="rgb(0, 255, 0)" />
               <Text style={[styles.metricLabel, { color: "rgb(0, 255, 0)" }]}>
-                Entradas do Mês
+                Entradas do mês
               </Text>
             </View>
             <Text style={[styles.metricValue, { color: "rgb(0, 255, 0)" }]}>
-              {formatCurrency(metrics.currentMonthEntradas)}
+              {formatCurrency(metrics.currentMonthEntradas || 0)}
             </Text>
             <Text
               style={[
@@ -190,11 +199,11 @@ export function FinancialMetrics() {
             <View style={styles.metricHeader}>
               <FontAwesome6 name="arrow-trend-down" size={20} color="rgb(255, 0, 0)" />
               <Text style={[styles.metricLabel, { color: "rgb(255, 0, 0)" }]}>
-                Saídas do Mês
+                Saídas do mês
               </Text>
             </View>
             <Text style={[styles.metricValue, { color: "rgb(255, 0, 0)" }]}>
-              {formatCurrency(metrics.currentMonthSaidas)}
+              {formatCurrency(metrics.currentMonthSaidas || 0)}
             </Text>
             <Text
               style={[
@@ -208,20 +217,20 @@ export function FinancialMetrics() {
                 },
               ]}
             >
-              {typeof metrics.entradaTrend === "number" ? (
+              {typeof metrics.saidaTrend === "number" ? (
                 <>
-                  {metrics.entradaTrend <= 0 ? (
+                  {metrics.saidaTrend <= 0 ? (
                     <FontAwesome6 name="arrow-down" size={16} color="rgb(255, 0, 0)" />
                   ) : (
                     <FontAwesome6 name="arrow-up" size={16} color="rgb(0, 255, 0)" />
                   )}
                   <Text
                     style={{
-                      color: metrics.entradaTrend >= 0 ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)",
+                      color: metrics.saidaTrend <= 0 ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)",
                       marginLeft: 4,
                     }}
                   >
-                    {Math.abs(metrics.entradaTrend).toFixed(1)}% vs mês anterior
+                    {Math.abs(metrics.saidaTrend).toFixed(1)}% vs mês anterior
                   </Text>
                 </>
               ) : (
@@ -231,21 +240,23 @@ export function FinancialMetrics() {
           </View>
 
           {/* Método mais usado */}
-          <View style={styles.metric}>
-            <View style={styles.metricHeader}>
-              <FontAwesome6
-                name="credit-card"
-                size={18}
-                color={theme.foreground}
-              />
-              <Text style={[styles.metricLabel, { color: theme.foreground }]}>
-                Método Mais Usado
+          {metrics.mostUsedPayment && metrics.mostUsedPayment !== "N/A" ? (
+            <View style={styles.metric}>
+              <View style={styles.metricHeader}>
+                <FontAwesome6
+                  name="credit-card"
+                  size={18}
+                  color={theme.foreground}
+                />
+                <Text style={[styles.metricLabel, { color: theme.foreground }]}>
+                  Método mais usado
+                </Text>
+              </View>
+              <Text style={[styles.metricValue, { color: theme.foreground }]}>
+                {metrics.mostUsedPayment}
               </Text>
             </View>
-            <Text style={[styles.metricValue, { color: theme.foreground }]}>
-              {metrics.mostUsedPayment}
-            </Text>
-          </View>
+          ) : null}
 
           {/* Total de transações */}
           <View style={styles.metric}>
@@ -256,11 +267,11 @@ export function FinancialMetrics() {
                 color={theme.foreground}
               />
               <Text style={[styles.metricLabel, { color: theme.foreground }]}>
-                Total de Transações
+                Total de transações
               </Text>
             </View>
             <Text style={[styles.metricValue, { color: theme.foreground }]}>
-              {metrics.totalTransactions}
+              {metrics.totalTransactions ?? 0}
             </Text>
           </View>
         </CardContent>

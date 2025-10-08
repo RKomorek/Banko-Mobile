@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -54,6 +54,15 @@ export default function LoginRegisterScreen() {
           email,
           createdAt: new Date(),
         });
+
+        // Adiciona registro na tabela accounts (sem notificar o usuário)
+        await addDoc(collection(db, "accounts"), {
+          user_id: user.uid,
+          numero_conta: Math.floor(Math.random() * 9000000000 + 1000000000).toString(), // número de conta aleatório
+          saldo: 1000,
+          created_at: new Date().toISOString(),
+        });
+
         Toast.show({
           type: 'success',
           text1: 'Sucesso',
@@ -61,7 +70,6 @@ export default function LoginRegisterScreen() {
         });
       }
     } catch (err: any) {
-      
       Toast.show({
         type: "error",
         text1: "Erro ao autenticar",
@@ -74,14 +82,10 @@ export default function LoginRegisterScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View
-        style={{
-          alignItems: "center",
-          marginBottom: 16, // espaço abaixo do logo
-        }}
-      >
+      <View style={styles.logoBox}>
         <LogoBanko variant="full" size={200} />
       </View>
+      <View style={{ flex: 1,}}>
       <Text style={[styles.title, { color: theme.foreground }]}>
         {isLogin ? "Entrar" : "Cadastre-se"}
       </Text>
@@ -143,6 +147,7 @@ export default function LoginRegisterScreen() {
         </Text>
       </TouchableOpacity>
     </View>
+    </View>
   );
 }
 
@@ -181,5 +186,12 @@ const styles = StyleSheet.create({
   toggle: {
     marginTop:22,
     textAlign: "center",
+  },
+  logoBox: {
+    height: 200,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 70,
+    marginBottom: 0,
   },
 });

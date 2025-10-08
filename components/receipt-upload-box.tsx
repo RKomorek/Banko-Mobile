@@ -35,13 +35,11 @@ const styles = StyleSheet.create({
   box: {
     borderWidth: 2,
     borderStyle: "dashed",
-
     borderRadius: 8,
-    padding: 20,
+    padding: 15,
     alignItems: "center",
     justifyContent: "center",
     marginVertical: 10,
-
   },
   text: {
     fontSize: 15,
@@ -51,7 +49,6 @@ const styles = StyleSheet.create({
  label: {
     fontWeight: "600",
     fontSize: 15,
-    marginBottom: 2,
     textAlign: "left",
   },
   selectedFile: {

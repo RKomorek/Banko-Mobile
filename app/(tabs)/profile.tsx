@@ -62,7 +62,7 @@ export default function ProfileScreen() {
       <Text style={[styles.title, { color: theme.primary }]}>Perfil do usuário</Text>
 
       {/* Card de informações */}
-      <View style={[styles.card, { backgroundColor: theme.card }]}>
+      <View style={[styles.card, { backgroundColor: theme.background }]}>
         <View style={styles.infoBox}>
           <Text style={[styles.label, { color: theme.foreground }]}>Nome</Text>
           <Text style={[styles.value, { color: theme.foreground }]}>{userInfo?.name || "-"}</Text>
@@ -81,14 +81,14 @@ export default function ProfileScreen() {
 
       {/* Botão de logout */}
       <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.card, borderColor:theme.primary }]} onPress={handleLogout}>
-        <Text style={[styles.logoutText, { color: theme.primaryForeground }]}>Sair</Text>
+        <Text style={[styles.logoutText, { color: theme.primary }]}>Sair</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, alignItems: "center" },
+  container: { flex: 1, padding: 25, alignItems: "center" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   avatar: {
     width: 100,
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 24, textAlign: "center" },
   card: {
     width: "100%",
-    padding: 20,
+    paddingTop: 20,
     borderRadius: 16,
     marginBottom: 32,
   },

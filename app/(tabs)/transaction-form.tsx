@@ -16,11 +16,15 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
+  getDocs,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import React, { JSX, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -53,7 +57,7 @@ interface TransactionFormProps {
 }
 
 const schema = yup.object({
-  title: yup.string().trim().required("Título obrigatório"),
+  title: yup.string().trim().required("Descrição obrigatória"),
   amount: yup
     .number()
     .typeError("Valor deve ser número")
@@ -103,29 +107,35 @@ export default function TransactionForm({
     },
   });
 
-  React.useEffect(() => {
-    if (mergedInitialValues) {
-      reset({
-        title: mergedInitialValues.title || "",
-        amount: Math.abs(mergedInitialValues.amount) || 0,
-        type: mergedInitialValues.type || "cartao",
-        date: mergedInitialValues.date
-          ? typeof mergedInitialValues.date === "string"
-            ? mergedInitialValues.date
-            : typeof mergedInitialValues.date === "object" && "seconds" in mergedInitialValues.date
-              ? new Date((mergedInitialValues.date as { seconds: number }).seconds * 1000).toISOString().slice(0, 10)
-              : new Date(mergedInitialValues.date as Date).toISOString().slice(0, 10)
-          : new Date().toISOString().slice(0, 10),
-        isNegative: mergedInitialValues.isNegative ?? false,
-      });
-    }
-  }, [mergedInitialValues, reset]);
+  // Bloqueia navegação enquanto não salvar/cancelar
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!canLeaveRef.current) {
+        e.preventDefault();
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Oculta a tab bar apenas nesta tela
+  useEffect(() => {
+    navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    return () => {
+      navigation.getParent()?.setOptions({ tabBarStyle: undefined });
+    };
+  }, []);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [receiptUri, setReceiptUri] = useState<string | null>(
     mergedInitialValues?.receiptUrl || null
   );
+  const [amountMasked, setAmountMasked] = useState("");
+  const isNegative = watch("isNegative");
+
+  // Ref para garantir atualização imediata do bloqueio
+  const canLeaveRef = React.useRef(false);
+
   function formatDate(dateString: string) {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -134,9 +144,7 @@ export default function TransactionForm({
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   }
-  // Para mudar cor do valor conforme entrada/saída
-  const isNegative = watch("isNegative");
-  const [amountMasked, setAmountMasked] = useState("");
+
   const paymentIcons: Record<string, JSX.Element> = {
     cartao: <CartaoIcon style={{ color: theme.foreground }} />,
     boleto: <BoletoIcon style={{ color: theme.foreground }} />,
@@ -149,7 +157,6 @@ export default function TransactionForm({
     pix: "Pix",
   };
 
-  // Atualiza o valor mascarado ao editar ou criar
   React.useEffect(() => {
     if (mergedInitialValues?.amount !== undefined) {
       setAmountMasked(String(Math.round(Math.abs(mergedInitialValues.amount * 100))));
@@ -165,13 +172,14 @@ export default function TransactionForm({
       currency: "BRL",
     });
   }
+
   const pickReceipt = async () => {
     try {
       const res = await getDocumentAsync({
         copyToCacheDirectory: true,
         type: "*/*",
       });
-      if (res.canceled) return; // Não faz nada se cancelar
+      if (res.canceled) return;
       if (res.assets && res.assets.length > 0) {
         setReceiptUri(res.assets[0].uri);
       }
@@ -209,8 +217,35 @@ export default function TransactionForm({
     }
   };
 
+  // Busca o documento da conta do usuário
+  const getAccountDocRef = async (userId: string) => {
+    const q = query(collection(db, "accounts"), where("user_id", "==", userId));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return doc(db, "accounts", snapshot.docs[0].id);
+    }
+    return null;
+  };
+
+  // Atualiza o saldo da conta
+  const updateAccountBalance = async (userId: string, value: number) => {
+    const accountRef = await getAccountDocRef(userId);
+    if (accountRef) {
+      const accountSnap = await getDoc(accountRef);
+      const accountData = accountSnap.data();
+      const currentBalance = parseFloat(accountData?.saldo ?? "0");
+      await updateDoc(accountRef, {
+        saldo: (currentBalance + value).toFixed(2),
+      });
+    }
+  };
+
   const goToList = () => {
-    navigation.goBack();
+    canLeaveRef.current = true;
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "transactions" as never }],
+    });
   };
 
   const onSubmit: SubmitHandler<TransactionFormValues> = async (data) => {
@@ -237,16 +272,27 @@ export default function TransactionForm({
         isNegative: data.isNegative,
       };
 
+      let balanceChange = amount;
+
       if (mergedInitialValues?.id) {
+        // EDIÇÃO: calcula diferença
+        const previousAmount = Math.abs(mergedInitialValues.amount) * (mergedInitialValues.isNegative ? -1 : 1);
+        balanceChange = amount - previousAmount;
+
         const txRef = doc(db, "transactions", mergedInitialValues.id);
         await updateDoc(txRef, payload);
       } else {
+        // NOVA TRANSAÇÃO
         const txCollection = collection(db, "transactions");
         await addDoc(txCollection, {
           ...payload,
           createdAt: serverTimestamp(),
         });
       }
+
+      // Atualiza saldo da conta
+      await updateAccountBalance(user.uid, balanceChange);
+
       onSaved();
       goToList();
     } catch (err) {
@@ -470,7 +516,6 @@ export default function TransactionForm({
             />
           )}
           {/* Botões fixos na base */}
-
           <View style={[styles.footerFixed, { backgroundColor: theme.background }]}>
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: theme.card, borderColor: theme.primary }]}
@@ -509,14 +554,12 @@ const styles = StyleSheet.create({
   footerFixed: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    gap: 0,
+    paddingHorizontal: 15,
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 10,
   },
   cardHeader: {
     borderTopLeftRadius: 8,
@@ -542,7 +585,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 2,
-    marginHorizontal: 4,
   },
   radioLabel: {
     fontWeight: "600",
@@ -557,10 +599,9 @@ const styles = StyleSheet.create({
   movingTypeBtn: {
     flex: 1,
     alignItems: "center",
-    padding: 10,
+    padding: 12,
     borderRadius: 8,
     borderWidth: 2,
-    marginHorizontal: 4,
   },
   movingTypeLabel: {
     fontWeight: "600",
@@ -569,14 +610,14 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: "600",
     fontSize: 15,
-    marginTop: 12,
-    marginBottom: 2,
+    marginTop: 4,
+    marginBottom: 0,
   },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
-    marginVertical: 6,
+    marginVertical: 8,
     fontSize: 16,
   },
   error: {
@@ -604,6 +645,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 2,
   },
 });
