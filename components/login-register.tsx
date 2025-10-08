@@ -34,11 +34,6 @@ export default function LoginRegisterScreen() {
       if (isLogin) {
         // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
-        Toast.show({
-          type: 'success',
-          text1: 'Sucesso',
-          text2: 'Login realizado!',
-        });
       } else {
         // CADASTRO
         const userCredential = await createUserWithEmailAndPassword(

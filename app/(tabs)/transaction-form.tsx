@@ -90,6 +90,38 @@ export default function TransactionForm({
   const mergedInitialValues =
     initialValues || (route.params && (route.params as any).initialValues);
 
+
+  const normalizeDate = (date: any) => {
+    if (!date) return new Date().toISOString().slice(0, 10);
+    if (typeof date === "string") {
+      // Se já está no formato ISO, retorna
+      if (/^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
+      // Se é outro formato, tenta converter
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      return new Date().toISOString().slice(0, 10);
+    }
+    if (date instanceof Date) {
+      return date.toISOString().slice(0, 10);
+    }
+    // Firestore Timestamp
+    if (date?.seconds) {
+      return new Date(date.seconds * 1000).toISOString().slice(0, 10);
+    }
+    if (date?.toDate) {
+      return date.toDate().toISOString().slice(0, 10);
+    }
+    return new Date().toISOString().slice(0, 10);
+  };
+
+  const normalizedInitialValues = mergedInitialValues
+    ? {
+        ...mergedInitialValues,
+        date: normalizeDate(mergedInitialValues.date),
+      }
+    : undefined;
+
+
   const {
     control,
     handleSubmit,
@@ -98,7 +130,7 @@ export default function TransactionForm({
     watch,
   } = useForm<TransactionFormValues>({
     resolver: yupResolver(schema),
-    defaultValues: mergedInitialValues || {
+    defaultValues: normalizedInitialValues || {
       title: "",
       amount: 0,
       type: "cartao",
@@ -447,7 +479,7 @@ export default function TransactionForm({
               <>
                 <Text style={[styles.label, { color: theme.foreground }]}>Descrição</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input, color:theme.foreground }]}
+                  style={[styles.input, { backgroundColor: theme.card, borderColor: theme.input, color: theme.foreground }]}
                   placeholderTextColor={theme.foreground}
                   placeholder="Descrição da transação"
                   value={value}

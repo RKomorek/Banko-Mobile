@@ -101,7 +101,7 @@ export function FinancialMetrics() {
           100
         : 0;
 
-    const paymentMethods = transactions.reduce<Record<string, number>>(
+        const paymentMethods = transactions.reduce<Record<string, number>>(
       (acc, t: Transacao) => {
         acc[t.tipo] = (acc[t.tipo] || 0) + 1;
         return acc;
@@ -109,10 +109,22 @@ export function FinancialMetrics() {
       {}
     );
 
-    const mostUsedPayment =
+    // Formata o nome do método de pagamento
+    const paymentLabels: Record<string, string> = {
+      boleto: "Boleto",
+      cartao: "Cartão",
+      pix: "Pix",
+    };
+
+    const mostUsedPaymentKey =
       Object.entries(paymentMethods).sort(
         ([, a], [, b]) => (b as number) - (a as number)
-      )[0]?.[0] || "N/A";
+      )[0]?.[0];
+
+    const mostUsedPayment =
+      mostUsedPaymentKey && paymentLabels[mostUsedPaymentKey]
+        ? paymentLabels[mostUsedPaymentKey]
+        : "N/A";
 
     return {
       currentMonthEntradas,
