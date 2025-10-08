@@ -1,11 +1,7 @@
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Tabs } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import React, { useEffect, useState } from "react";
@@ -19,9 +15,11 @@ export type RootStackParamList = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
@@ -50,45 +48,36 @@ export default function RootLayout() {
           tabBarStyle: {
             backgroundColor: Colors[colorScheme ?? "light"].background,
           },
-          tabBarActiveTintColor: Colors[colorScheme ?? "light"].primary,
+          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].primary,
           headerShown: false,
           tabBarButton: HapticTab,
-        }}
-      >
+        }}>
         <Tabs.Screen
           name="index"
           options={{
-            title: "Home",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="house.fill" color={color} />
-            ),
+            title: 'Home',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
           }}
         />
         <Tabs.Screen
-          name="transactions"
+          name="transaction-list"
           options={{
-            title: "Transações",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="list" color={color} />
-            ),
+            title: 'Transações',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="repeat" color={color} />,
           }}
         />
         <Tabs.Screen
           name="transaction-form"
           options={{
-            title: "Nova transação",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="pencil" color={color} />
-            ),
+            title: 'Nova transação',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="pencil" color={color} />,
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
-            title: "Perfil",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="person" color={color} />
-            ),
+            title: 'Perfil',
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="person" color={color} />,
           }}
         />
       </Tabs>
