@@ -1,5 +1,3 @@
-import TransactionsListScreen from "@/components/transactions/transactions-screen";
+import TransactionsScreen from "@/features/transactions/transactions-screen";
 
-export default function TransactionsRoute() {
-  return <TransactionsListScreen />;
-}
+export default TransactionsScreen;
