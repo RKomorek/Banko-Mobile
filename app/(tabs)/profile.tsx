@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { Colors } from "../../constants/theme";
 import { auth, db } from "../../firebase";
+import { Colors } from "../../shared/constants/theme";
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();

@@ -1,61 +1,28 @@
-import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { useAuthState } from "@/features/auth/data/use-auth";
+import LoginRegisterScreen from "@/features/auth/presentation/login-register";
+import { Colors } from "@/shared/constants/theme";
+import { IconSymbol } from "@/shared/ui/icon-symbol";
 import { Tabs } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ActivityIndicator, useColorScheme, View } from "react-native";
-import LoginRegisterScreen from "../../components/login-register";
-import { auth } from "../../firebase";
 
 export type RootStackParamList = {
   "transaction-form": { initialValues?: any } | undefined;
 };
 
-export default function RootLayout() {
+export default function TabsLayout() {
+  const { user, loading } = useAuthState();
   const colorScheme = useColorScheme();
 
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return <LoginRegisterScreen />;
-  }
+  if (loading) return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><ActivityIndicator/></View>;
+  if (!user) return <LoginRegisterScreen />;
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Tabs
-        screenOptions={{
-          tabBarStyle: {
-            backgroundColor: Colors[colorScheme ?? "light"].background,
-          },
-          tabBarActiveTintColor: Colors[colorScheme ?? "light"].primary,
-          headerShown: false,
-          tabBarButton: HapticTab,
-        }}
-      >
+    <Tabs screenOptions={{
+      tabBarStyle: { backgroundColor: Colors[colorScheme ?? 'light'].background },
+      tabBarActiveTintColor: Colors[colorScheme ?? 'light'].primary,
+      headerShown: false
+    }}>
         <Tabs.Screen
           name="index"
           options={{
@@ -98,6 +65,5 @@ export default function RootLayout() {
           }}
         />
       </Tabs>
-    </ThemeProvider>
   );
 }
