@@ -7,6 +7,7 @@ export interface Transaction {
   isNegative: boolean;
   date: Date | { seconds: number; toDate?: () => Date };
   receiptUrl?: string | null;
+  receiptFileName?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

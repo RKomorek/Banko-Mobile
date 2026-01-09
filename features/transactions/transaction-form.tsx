@@ -29,15 +29,19 @@ import type { SubmitHandler } from "react-hook-form";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   useColorScheme,
-  View,
+  View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import * as yup from "yup";
 import { auth, db, storage } from "../../firebase";
@@ -51,7 +55,11 @@ interface TransactionFormValues {
 }
 
 interface TransactionFormProps {
-  initialValues?: TransactionFormValues & { id?: string; receiptUrl?: string };
+  initialValues?: TransactionFormValues & { 
+    id?: string; 
+    receiptUrl?: string;
+    receiptFileName?: string;
+  };
   onSaved?: () => void;
   onCancel?: () => void;
 }
@@ -85,6 +93,7 @@ export default function TransactionForm({
 }: TransactionFormProps) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const navigation = useNavigation();
   const mergedInitialValues =
@@ -157,7 +166,11 @@ export default function TransactionForm({
   const [receiptUri, setReceiptUri] = useState<string | null>(
     mergedInitialValues?.receiptUrl || null
   );
+  const [receiptFileName, setReceiptFileName] = useState<string | null>(
+    mergedInitialValues?.receiptFileName || null
+  );
   const [amountMasked, setAmountMasked] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
   const isNegative = watch("isNegative");
 
   const canLeaveRef = React.useRef(false);
@@ -199,6 +212,19 @@ export default function TransactionForm({
     });
   }
 
+  const isImageFile = (uri: string | null, fileName?: string | null) => {
+    if (!uri) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    const checkString = (fileName || uri).toLowerCase();
+    return imageExtensions.some(ext => checkString.includes(ext));
+  };
+
+
+  const removeReceipt = () => {
+    setReceiptUri(null);
+    setReceiptFileName(null);
+  };
+
   const pickReceipt = async () => {
     try {
       const res = await getDocumentAsync({
@@ -207,7 +233,9 @@ export default function TransactionForm({
       });
       if (res.canceled) return;
       if (res.assets && res.assets.length > 0) {
-        setReceiptUri(res.assets[0].uri);
+        const asset = res.assets[0];
+        setReceiptUri(asset.uri);
+        setReceiptFileName(asset.name);
       }
     } catch {
       Toast.show({
@@ -294,9 +322,14 @@ export default function TransactionForm({
       const amount = Math.abs(data.amount) * (isNegative ? -1 : 1);
 
       let receiptUrl = mergedInitialValues?.receiptUrl || null;
+      let savedFileName = mergedInitialValues?.receiptFileName || null;
+      
       if (receiptUri && receiptUri !== mergedInitialValues?.receiptUrl) {
         const uploaded = await uploadReceiptToFirebase(receiptUri);
-        if (uploaded) receiptUrl = uploaded;
+        if (uploaded) {
+          receiptUrl = uploaded;
+          savedFileName = receiptFileName;
+        }
       }
 
       const payload = {
@@ -305,6 +338,7 @@ export default function TransactionForm({
         type: data.type,
         date: new Date(data.date),
         receiptUrl: receiptUrl || null,
+        receiptFileName: savedFileName || null,
         updatedAt: serverTimestamp(),
         userId: user.uid,
         isNegative: data.isNegative,
@@ -346,17 +380,30 @@ export default function TransactionForm({
     reset();
     setAmountMasked("");
     setReceiptUri(null);
+    setReceiptFileName(null);
     onCancel();
     goToList();
   };
 
   return (
-    <SafeAreaWrapper backgroundColor={theme.background}>
+    <SafeAreaWrapper
+      backgroundColor={theme.background}
+      edges={["top", "left", "right"]}
+    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: 140 + insets.bottom },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.content}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: theme.foreground }]}>
@@ -530,13 +577,16 @@ export default function TransactionForm({
             )}
           />
 
-          <View style={{ marginVertical: 10 }}>
-            <ReceiptUploadBox
-              onPress={pickReceipt}
-              selected={!!receiptUri}
-              fileName={receiptUri ? receiptUri.split("/").pop() : undefined}
-            />
-          </View>
+          {/* Upload de recibo */}
+          <ReceiptUploadBox
+            onPress={pickReceipt}
+            selected={!!receiptUri}
+            fileName={receiptFileName || (receiptUri ? receiptUri.split("/").pop() : undefined)}
+            imageUri={receiptUri}
+            isImage={isImageFile(receiptUri, receiptFileName)}
+            onRemove={removeReceipt}
+            onViewFull={() => setShowImageModal(true)}
+          />
 
           {uploading && (
             <ActivityIndicator
@@ -544,7 +594,22 @@ export default function TransactionForm({
               style={{ marginVertical: 8 }}
             />
           )}
-          <View style={[styles.footerFixed, { backgroundColor: theme.background }]}>
+        </View>
+        </ScrollView>
+        
+        {/* Rodapé fixo com fundo e separador */}
+        <View
+          style={[
+            styles.footerContainer,
+            {
+              backgroundColor: theme.background,
+              borderTopColor: theme.border,
+              borderTopWidth: 1,
+              paddingBottom: insets.bottom,
+            },
+          ]}
+        >
+          <View style={styles.footerButtons}>
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: theme.card, borderColor: theme.primary }]}
               onPress={handleCancel}
@@ -570,24 +635,200 @@ export default function TransactionForm({
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Modal de visualização em tela cheia */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.95)' }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Visualização do anexo</Text>
+            <TouchableOpacity
+              onPress={() => setShowImageModal(false)}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>✕ Fechar</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.modalImageContainer}>
+            {receiptUri && isImageFile(receiptUri, receiptFileName) && (
+              <Image
+                source={{ uri: receiptUri }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+          
+        </View>
+      </Modal>
     </SafeAreaWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+  content: {
     padding: 16,
   },
-  footerFixed: {
+  integratedPreview: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  compactPreviewImage: {
+    width: "100%",
+    height: 120,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  imageActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  actionBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  compactFilePreview: {
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  compactFileName: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  removeOnlyBtn: {
+    padding: 8,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  previewContainer: {
+    marginVertical: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  previewImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  previewHint: {
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  filePreview: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  fileName: {
+    fontSize: 14,
+  },
+  previewActions: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  previewButton: {
+    flex: 1,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 0,
-    paddingHorizontal: 15,
+    alignItems: "center",
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalImageContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  modalButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  footerContainer: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
+    paddingTop: 0,
+    zIndex: 10,
+    elevation: 6,
+  },
+  footerButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   cardHeader: {
     borderTopLeftRadius: 8,
@@ -651,14 +892,6 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 12,
     marginBottom: 4,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-    marginTop: 18,
-    marginBottom: 8,
-    paddingHorizontal: 16,
   },
   saveButton: {
     borderRadius: 8,
