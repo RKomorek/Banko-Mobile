@@ -25,6 +25,12 @@ export const useAuthStore = create<AuthState>((set) => {
       if (unsubscribe) {
         return;
       }
+      if (!auth) {
+        console.error('[AuthStore] Auth não inicializado');
+        set({ loading: false });
+
+        return;
+      }
       
       // Fallback timeout: se não receber resposta em 5s, desliga loading
       const timeout = setTimeout(() => {
@@ -38,6 +44,9 @@ export const useAuthStore = create<AuthState>((set) => {
     },
     logout: async () => {
       try {
+        if (!auth) {
+          throw new Error("Auth não inicializado");
+        }
         await signOut(auth!);
         set({ user: null });
       } catch (error) {

@@ -1,5 +1,11 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withSpring
+} from 'react-native-reanimated';
 
 import { Colors } from '@/shared/constants/theme';
 import type { Transaction } from '@/shared/hooks/use-transactions';
@@ -8,6 +14,7 @@ type Props = {
   transaction: Transaction;
   theme: typeof Colors.light;
   currencyFormatter: Intl.NumberFormat;
+  index?: number;
 };
 
 const typeLabels = {
@@ -16,12 +23,27 @@ const typeLabels = {
   pix: 'Pix',
 } as const;
 
-function TransactionCardComponent({ transaction, theme, currencyFormatter }: Props) {
+function TransactionCardComponent({ transaction, theme, currencyFormatter, index = 0 }: Props) {
   const isNegative = transaction.amount < 0;
   const amountColor = isNegative ? theme.destructive : theme.constructive;
 
+  // Animações de entrada
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+  
+  useEffect(() => {
+    const delay = index * 50; // Stagger effect
+    opacity.value = withDelay(delay, withSpring(1, { damping: 15 }));
+    translateY.value = withDelay(delay, withSpring(0, { damping: 15, stiffness: 100 }));
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+    <Animated.View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, animatedStyle]}> 
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.foreground }]} numberOfLines={1}>
           {transaction.title || 'Transação sem título'}
@@ -40,7 +62,7 @@ function TransactionCardComponent({ transaction, theme, currencyFormatter }: Pro
           }).format(transaction.date)}
         </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const FinancialMetrics = lazy(() => import('@/features/auth/domain/financial-metrics').then(module => ({ default: module.FinancialMetrics })));
 
@@ -67,10 +68,14 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
 
+        {/* Greeting Card */}
+        <Animated.View 
+          style={styles.container}
+          entering={FadeInDown.delay(100).springify()}
+        >
             <View style={styles.logoBox}>
               <LogoBanko variant="full" size={140} />
             </View>
-        <View style={styles.container}>
           <Card
             style={[
               styles.card,
@@ -94,10 +99,13 @@ export default function HomeScreen() {
               </Text>
             </CardContent>
           </Card>
-        </View>
+        </Animated.View>
 
-
-        <View style={styles.container}>
+        {/* Balance Card */}
+        <Animated.View 
+          style={styles.container}
+          entering={FadeInDown.delay(200).springify()}
+        >
           <Card
             style={[
               styles.card,
@@ -128,10 +136,13 @@ export default function HomeScreen() {
               </Text>
             </CardContent>
           </Card>
-        </View>
+        </Animated.View>
 
         {/* Chart */}
-        <View style={styles.container}>
+        <Animated.View 
+          style={styles.container}
+          entering={FadeInDown.delay(300).springify()}
+        >
           <Card
             style={[
               styles.card,
@@ -210,19 +221,15 @@ export default function HomeScreen() {
               />
             </CardContent>
           </Card>
-        </View>
+        </Animated.View>
 
-        <View style={styles.container}>
-          <Suspense
-            fallback={
-              <View style={{ padding: 16, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={theme.primary} />
-              </View>
-            }
-          >
-            <FinancialMetrics />
-          </Suspense>
-        </View>
+        {/* Financial Metrics */}
+        <Animated.View 
+          style={styles.container}
+          entering={FadeInDown.delay(400).springify()}
+        >
+          <FinancialMetrics />
+        </Animated.View>
         </ScrollView>
       </View>
     </View>
