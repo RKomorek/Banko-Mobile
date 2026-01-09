@@ -18,8 +18,8 @@ const MAPPING = {
   'repeat': 'repeat',
   'person': 'person',
   'pencil': 'drive-file-rename-outline',
-  'list': 'list',
-  'card-plus-outline': 'add-card',
+  'list': 'list', // Material Icon para lista
+  'add-card': 'add-circle', // Material Icon para adicionar/criar
   'filter': 'filter-list',
 } as const satisfies Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
 

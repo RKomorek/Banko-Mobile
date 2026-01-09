@@ -1,8 +1,9 @@
-import { FinancialMetrics } from '@/features/auth/domain/financial-metrics';
 import { useDashboard } from '@/features/dashboard/presentation/use-dashboard';
 import { Colors } from '@/shared/constants/theme';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { HelloWave } from '@/shared/ui/hello-wave';
+import { LogoBanko } from '@/shared/ui/logo-banko';
+import { lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -15,6 +16,7 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+const FinancialMetrics = lazy(() => import('@/features/auth/domain/financial-metrics').then(module => ({ default: module.FinancialMetrics })));
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -65,11 +67,15 @@ export default function HomeScreen() {
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
         >
+
         {/* Greeting Card */}
         <Animated.View 
           style={styles.container}
           entering={FadeInDown.delay(100).springify()}
         >
+            <View style={styles.logoBox}>
+              <LogoBanko variant="full" size={140} />
+            </View>
           <Card
             style={[
               styles.card,
@@ -289,5 +295,11 @@ const styles = StyleSheet.create({
   },
   chart: {
     borderRadius: 12,
+  },
+  logoBox: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+
   },
 });

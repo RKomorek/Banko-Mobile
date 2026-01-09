@@ -5,7 +5,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 export class TransactionsRepository {
   async getTransactions(): Promise<Transaction[]> {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) return [];
       if (!db) {
         console.warn('Firestore não está disponível');

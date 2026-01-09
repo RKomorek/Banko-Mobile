@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:offline": "expo start --offline",
+    "start:no-dev": "EXPO_NO_DOTENV=1 expo start --no-dev",
+    "start:local": "expo start --localhost",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
+    "android:offline": "expo start --android --offline",
     "ios": "expo start --ios",
+    "ios:offline": "expo start --ios --offline",
     "web": "expo start --web",
     "lint": "expo lint"
   },
@@ -57,7 +62,7 @@
   },
   "devDependencies": {
     "@types/firebase": "^2.4.32",
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.2.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"

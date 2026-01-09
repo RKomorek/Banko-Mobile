@@ -50,7 +50,6 @@ export default function ProfileScreen() {
 
       <Text style={[styles.title, { color: theme.primary }]}>Perfil do usuário</Text>
 
-      {/* Card de informações */}
       <View style={[styles.card, { backgroundColor: theme.background }]}>
         <View style={styles.infoBox}>
           <Text style={[styles.label, { color: theme.foreground }]}>Nome</Text>
