@@ -32,7 +32,6 @@ export function FinancialMetrics() {
       const txSnap = await getDocs(txQ);
       const txs = txSnap.docs.map((doc) => {
         const tx = doc.data();
-        // Normaliza os dados para o formato esperado
         return {
           data: tx.date?.toDate ? tx.date.toDate() : new Date(tx.date),
           movimentacao: tx.isNegative ? "saida" : "entrada",
@@ -109,7 +108,6 @@ export function FinancialMetrics() {
       {}
     );
 
-    // Formata o nome do método de pagamento
     const paymentLabels: Record<string, string> = {
       boleto: "Boleto",
       cartao: "Cartão",
@@ -161,7 +159,6 @@ export function FinancialMetrics() {
           </Text>
         </CardHeader>
         <CardContent>
-          {/* Entradas */}
           <View style={styles.metric}>
             <View style={styles.metricHeader}>
               <FontAwesome6 name="arrow-trend-up" size={20} color="rgb(0, 255, 0)" />
@@ -206,7 +203,6 @@ export function FinancialMetrics() {
             </Text>
           </View>
 
-          {/* Saídas */}
           <View style={styles.metric}>
             <View style={styles.metricHeader}>
               <FontAwesome6 name="arrow-trend-down" size={20} color="rgb(255, 0, 0)" />
@@ -251,7 +247,6 @@ export function FinancialMetrics() {
             </Text>
           </View>
 
-          {/* Método mais usado */}
           {metrics.mostUsedPayment && metrics.mostUsedPayment !== "N/A" ? (
             <View style={styles.metric}>
               <View style={styles.metricHeader}>
@@ -270,7 +265,6 @@ export function FinancialMetrics() {
             </View>
           ) : null}
 
-          {/* Total de transações */}
           <View style={styles.metric}>
             <View style={styles.metricHeader}>
               <MaterialIcons

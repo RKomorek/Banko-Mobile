@@ -54,14 +54,13 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Avatar com iniciais */}
+
       <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
         <Text style={styles.avatarText}>{getInitials()}</Text>
       </View>
 
       <Text style={[styles.title, { color: theme.primary }]}>Perfil do usuário</Text>
 
-      {/* Card de informações */}
       <View style={[styles.card, { backgroundColor: theme.background }]}>
         <View style={styles.infoBox}>
           <Text style={[styles.label, { color: theme.foreground }]}>Nome</Text>
@@ -79,7 +78,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Botão de logout */}
       <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.card, borderColor:theme.primary }]} onPress={handleLogout}>
         <Text style={[styles.logoutText, { color: theme.primary }]}>Sair</Text>
       </TouchableOpacity>

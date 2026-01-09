@@ -1,102 +1,80 @@
+import { useTransactions, type TransactionFilters } from "@/shared/hooks/use-transactions";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { collection, getDocs, orderBy, query, Timestamp, where } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList } from "../../app/(tabs)/_layout";
-import { auth, db } from "../../firebase";
+import { auth } from "../../firebase";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
+import { TransactionsList } from "./transactions-list";
 
 const typeOptions = [
   { label: "Todos", value: "all" },
   { label: "Cartão", value: "cartao" },
   { label: "Boleto", value: "boleto" },
   { label: "Pix", value: "pix" },
-];
+] as const;
 
 const entryExitOptions = [
   { label: "Todas", value: "all" },
   { label: "Entradas", value: "entrada" },
   { label: "Saídas", value: "saida" },
-];
+] as const;
 
 export default function TransactionsScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const fontFamily = Fonts.sans;
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [entryExitFilter, setEntryExitFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "cartao" | "boleto" | "pix">("all");
+  const [entryExitFilter, setEntryExitFilter] = useState<"all" | "entrada" | "saida">("all");
   const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        const user = auth.currentUser;
-        if (!user) return;
+  const user = auth.currentUser;
 
-        let constraints = [
-          where("userId", "==", user.uid),
-          orderBy("date", "desc"),
-        ];
+  const filters: TransactionFilters = useMemo(
+    () => ({
+      type: typeFilter,
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      entryExit: entryExitFilter,
+    }),
+    [typeFilter, dateRange.start, dateRange.end, entryExitFilter]
+  );
 
-        if (typeFilter !== "all") {
-          constraints.push(where("type", "==", typeFilter));
-        }
-        if (entryExitFilter === "entrada") {
-          constraints.push(where("isNegative", "==", false));
-        }
-        if (entryExitFilter === "saida") {
-          constraints.push(where("isNegative", "==", true));
-        }
-        if (dateRange.start) {
-          constraints.push(where("date", ">=", Timestamp.fromDate(new Date(dateRange.start))));
-        }
-        if (dateRange.end) {
-          const endDate = new Date(dateRange.end);
-          endDate.setHours(23, 59, 59, 999);
-          constraints.push(where("date", "<=", Timestamp.fromDate(endDate)));
-        }
+  const {
+    transactions,
+    loading,
+    refreshing,
+    loadingMore,
+    hasMore,
+    loadMore,
+    refresh,
+    error,
+    clearError,
+  } = useTransactions({
+    userId: user?.uid ?? null,
+    filters,
+  });
 
-        const q = query(collection(db, "transactions"), ...constraints);
-        const snap = await getDocs(q);
-        const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setTransactions(list);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [typeFilter, entryExitFilter, dateRange.start, dateRange.end]);
-
-  if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.primary} />
-      </View>
-    );
-  }
+  const handleTransactionPress = (transaction: any) => {
+    navigation.navigate("transaction-form", { initialValues: transaction });
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerFixed}>
           <Text style={[styles.title, { color: theme.foreground, fontFamily }]}>Transações</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical:8 }}>
-
-              <Text style={[styles.filterTitle, { color: theme.foreground }]}>Filtros</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 8 }}>
+            <Text style={[styles.filterTitle, { color: theme.foreground }]}>Filtros</Text>
             <TouchableOpacity
               onPress={() => setShowFilters(prev => !prev)}
               style={{ marginTop: -10, marginRight: 5 }}
@@ -109,82 +87,79 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           </View>
           {showFilters && (
-          <>
-          {/* Filtros de tipo */}
-          <View style={{ flexDirection: "row", marginBottom: 12 }}>
-            {typeOptions.map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: typeFilter === option.value ? theme.primary : theme.card,
-                    borderColor: typeFilter === option.value ? theme.primary : theme.border,
-                  },
-                ]}
-                onPress={() => setTypeFilter(option.value)}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Filtros de entrada/saída */}
-          <View style={{ flexDirection: "row", marginBottom: 12 }}>
-            {entryExitOptions.map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: entryExitFilter === option.value ? theme.primary : theme.card,
-                    borderColor: entryExitFilter === option.value ? theme.primary : theme.border,
-                  },
-                ]}
-                onPress={() => setEntryExitFilter(option.value)}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Filtros de data com DatePicker */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-            <TouchableOpacity
-              style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
-              onPress={() => setShowStartPicker(true)}
-            >
-              <Text style={{ color: theme.mutedForeground }}>De</Text>
-              <Text style={{ color: theme.foreground, marginLeft: 8 }}>
-                {dateRange.start ? new Date(dateRange.start).toLocaleDateString("pt-BR") : "Data inicial"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
-              onPress={() => setShowEndPicker(true)}
-            >
-              <Text style={{ color: theme.mutedForeground }}>Até</Text>
-              <Text style={{ color: theme.foreground, marginLeft: 8 }}>
-                {dateRange.end ? new Date(dateRange.end).toLocaleDateString("pt-BR") : "Data final"}
-              </Text>
-            </TouchableOpacity>
-            {(dateRange.start || dateRange.end) && (
-              <TouchableOpacity
-                style={[styles.clearButton, { borderColor: theme.primary }]}
-                onPress={() => setDateRange({ start: null, end: null })}
-              >
-                <Text style={{ color: theme.primary }}>Limpar</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </>
-        )}
+            <>
+              <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                {typeOptions.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: typeFilter === option.value ? theme.primary : theme.card,
+                        borderColor: typeFilter === option.value ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setTypeFilter(option.value as any)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                {entryExitOptions.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: entryExitFilter === option.value ? theme.primary : theme.card,
+                        borderColor: entryExitFilter === option.value ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setEntryExitFilter(option.value as any)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+                  onPress={() => setShowStartPicker(true)}
+                >
+                  <Text style={{ color: theme.mutedForeground }}>De</Text>
+                  <Text style={{ color: theme.foreground, marginLeft: 8 }}>
+                    {dateRange.start ? new Date(dateRange.start).toLocaleDateString("pt-BR") : "Data inicial"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+                  onPress={() => setShowEndPicker(true)}
+                >
+                  <Text style={{ color: theme.mutedForeground }}>Até</Text>
+                  <Text style={{ color: theme.foreground, marginLeft: 8 }}>
+                    {dateRange.end ? new Date(dateRange.end).toLocaleDateString("pt-BR") : "Data final"}
+                  </Text>
+                </TouchableOpacity>
+                {(dateRange.start || dateRange.end) && (
+                  <TouchableOpacity
+                    style={[styles.clearButton, { borderColor: theme.primary }]}
+                    onPress={() => setDateRange({ start: null, end: null })}
+                  >
+                    <Text style={{ color: theme.primary }}>Limpar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          )}
         </View>
-        {/* DatePickers */}
+
         {showStartPicker && (
           <DateTimePicker
             value={dateRange.start ? new Date(dateRange.start) : new Date()}
@@ -211,61 +186,38 @@ export default function TransactionsScreen() {
             }}
           />
         )}
-        {/* Lista */}
-        <FlatList
-          data={transactions}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.itemRow,
-                { backgroundColor: theme.card, borderColor: theme.input }
-              ]}
-              onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
-            >
-              {/* Data */}
-              <View style={styles.cell}>
-                <Text style={[styles.itemDate, { color: theme.foreground }]}>
-                  {item.date
-                    ? new Date(
-                        item.date.seconds
-                          ? item.date.seconds * 1000
-                          : item.date
-                      ).toLocaleDateString("pt-BR")
-                    : ""}
-                </Text>
-              </View>
-              {/* Descrição */}
-              <View style={styles.cell}>
-                <Text style={[styles.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
-              </View>
-              {/* Tipo */}
-              <View style={styles.cell}>
-                <Text style={{ color: theme.foreground }}>
-                  {item.type === "pix" ? "Pix" : item.type === "cartao" ? "Cartão" : "Boleto"}
-                </Text>
-              </View>
-              {/* Valor */}
-              <View style={styles.cell}>
-                <Text style={[
-                  styles.itemAmount,
-                  {
-                    color:
-                      item.amount && item.isNegative
-                        ? theme.destructive
-                        : theme.constructive
-                  }
-                ]}>
-                  {item.amount
-                    ? (item.isNegative ? "- " : "+ ") +
-                      Math.abs(item.amount)?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                    : "-"}
-                </Text>
-              </View>
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { color: theme.destructive }]}>{error.message}</Text>
+            <TouchableOpacity onPress={clearError}>
+              <Text style={{ color: theme.primary }}>Fechar</Text>
             </TouchableOpacity>
-          )}
-          ListEmptyComponent={<Text style={[styles.empty, { color: theme.mutedForeground }]}>Nenhuma transação encontrada.</Text>}
-        />
+          </View>
+        )}
+
+        <View style={{ flex: 1 }}>
+          <TransactionsList
+            transactions={transactions.map(t => ({
+              ...t,
+              onPress: () => handleTransactionPress({
+                id: t.id,
+                title: t.title,
+                amount: t.amount,
+                type: t.type,
+                date: t.date instanceof Date ? t.date : new Date(t.date),
+                isNegative: t.isNegative,
+                receiptUrl: t.receiptUrl,
+              }),
+            }))}
+            theme={theme}
+            loading={loading}
+            refreshing={refreshing}
+            loadingMore={loadingMore}
+            onRefresh={refresh}
+            onLoadMore={hasMore ? loadMore : () => {}}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -281,12 +233,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 18 },
-  filterToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    alignSelf: "flex-end",
-  },
   filterTitle: {
     fontSize: 18,
     marginTop: -5,
@@ -319,22 +265,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  errorContainer: {
+    padding: 12,
     borderRadius: 8,
-    borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    marginBottom: 6,
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  cell: {
-    minWidth: 70,
-    marginRight: 12,
-    justifyContent: "center",
+  errorText: {
+    flex: 1,
+    fontSize: 14,
   },
-  itemTitle: { fontSize: 16},
-  itemAmount: { fontSize: 16, marginTop: 2, textAlign: "right", minWidth: 110 },
-  itemDate: { fontSize: 14 },
-  empty: { textAlign: "center", marginTop: 32 },
 });

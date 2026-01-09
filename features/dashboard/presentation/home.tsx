@@ -1,9 +1,9 @@
-import { FinancialMetrics } from '@/features/auth/domain/financial-metrics';
 import { useDashboard } from '@/features/dashboard/presentation/use-dashboard';
 import { Colors } from '@/shared/constants/theme';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { HelloWave } from '@/shared/ui/hello-wave';
 import SafeAreaWrapper from '@/shared/ui/safe-area-wrapper';
+import { lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+const FinancialMetrics = lazy(() => import('@/features/auth/domain/financial-metrics').then(module => ({ default: module.FinancialMetrics })));
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -53,7 +54,6 @@ export default function HomeScreen() {
   return (
     <SafeAreaWrapper backgroundColor={theme.background}>
       <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
-        {/* Greeting Card */}
         <View style={styles.container}>
           <Card
             style={{
@@ -78,7 +78,7 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* Balance Card */}
+
         <View style={styles.container}>
           <Card style={{ backgroundColor: theme.card, borderColor: theme.border }}>
             <CardHeader>
@@ -103,7 +103,7 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* Chart */}
+
         <Card
           style={{
             alignSelf: 'center',
@@ -162,9 +162,16 @@ export default function HomeScreen() {
           />
         </Card>
 
-        {/* Financial Metrics */}
         <View style={styles.container}>
-          <FinancialMetrics />
+          <Suspense
+            fallback={
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={theme.primary} />
+              </View>
+            }
+          >
+            <FinancialMetrics />
+          </Suspense>
         </View>
       </ScrollView>
     </SafeAreaWrapper>

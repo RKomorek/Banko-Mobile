@@ -5,6 +5,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -14,7 +15,7 @@ import type { Transaction } from '@/shared/hooks/use-transactions';
 import { TransactionCard } from './transaction-card';
 
 type Props = {
-  transactions: Transaction[];
+  transactions: (Transaction & { onPress?: () => void })[];
   theme: typeof Colors.light;
   loading: boolean;
   refreshing: boolean;
@@ -49,9 +50,19 @@ export function TransactionsList({
     <FlatList
       data={transactions}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <TransactionCard transaction={item} theme={theme} currencyFormatter={currencyFormatter} />
-      )}
+      renderItem={({ item }) => {
+        const { onPress, ...transaction } = item;
+        if (onPress) {
+          return (
+            <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+              <TransactionCard transaction={transaction} theme={theme} currencyFormatter={currencyFormatter} />
+            </TouchableOpacity>
+          );
+        }
+        return (
+          <TransactionCard transaction={transaction} theme={theme} currencyFormatter={currencyFormatter} />
+        );
+      }}
       contentContainerStyle={
         transactions.length === 0 ? [styles.listContent, styles.emptyList] : styles.listContent
       }

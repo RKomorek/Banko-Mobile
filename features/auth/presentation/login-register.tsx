@@ -33,17 +33,14 @@ export default function LoginRegisterScreen() {
     console.log('[LoginRegister] handleAuth start', { isLogin, email });
     try {
       if (isLogin) {
-        // LOGIN
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        // CADASTRO
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
         const user = userCredential.user;
-        // Salva dados extras na coleção users
         await setDoc(doc(db, "users", user.uid), {
           name,
           surname,
@@ -51,10 +48,9 @@ export default function LoginRegisterScreen() {
           createdAt: new Date(),
         });
 
-        // Adiciona registro na tabela accounts (sem notificar o usuário)
         await addDoc(collection(db, "accounts"), {
           user_id: user.uid,
-          numero_conta: Math.floor(Math.random() * 9000000000 + 1000000000).toString(), // número de conta aleatório
+          numero_conta: Math.floor(Math.random() * 9000000000 + 1000000000).toString(),
           saldo: 1000,
           created_at: new Date().toISOString(),
         });
@@ -167,7 +163,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingLeft:12,
+    padding:14,
     fontSize: 16,
     marginBottom: 14,
   },
