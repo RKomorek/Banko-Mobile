@@ -36,10 +36,7 @@ export default function TabsLayout() {
   const { user, loading } = useAuth();
   const colorScheme = useColorScheme();
 
-  console.log('[TabsLayout] Render - loading:', loading, 'user:', user?.email || 'no user');
-
   if (loading) {
-    console.log('[TabsLayout] Showing loading screen');
     return (
       <View style={{flex:1,justifyContent:'center',alignItems:'center', backgroundColor: Colors[colorScheme ?? 'light'].background}}>
         <ActivityIndicator size="large" color={Colors[colorScheme ?? 'light'].primary} />
@@ -48,11 +45,9 @@ export default function TabsLayout() {
   }
   
   if (!user) {
-    console.log('[TabsLayout] No user, showing login');
     return <LoginRegisterScreen />;
   }
 
-  console.log('[TabsLayout] User authenticated, showing tabs');
   return (
     <Tabs screenOptions={{
       tabBarStyle: { 

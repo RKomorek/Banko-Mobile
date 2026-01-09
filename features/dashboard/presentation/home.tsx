@@ -2,6 +2,7 @@ import { useDashboard } from '@/features/dashboard/presentation/use-dashboard';
 import { Colors } from '@/shared/constants/theme';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { HelloWave } from '@/shared/ui/hello-wave';
+import { LogoBanko } from '@/shared/ui/logo-banko';
 import { lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
@@ -65,7 +66,10 @@ export default function HomeScreen() {
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
         >
-        {/* Greeting Card */}
+
+            <View style={styles.logoBox}>
+              <LogoBanko variant="full" size={140} />
+            </View>
         <View style={styles.container}>
           <Card
             style={[
@@ -284,5 +288,11 @@ const styles = StyleSheet.create({
   },
   chart: {
     borderRadius: 12,
+  },
+  logoBox: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+
   },
 });

@@ -1,4 +1,3 @@
-import { Colors } from "@/shared/constants/theme";
 import React from "react";
 import { Image, ImageProps, useColorScheme } from "react-native";
 
@@ -10,7 +9,6 @@ type LogoBankoProps = {
 
 export function LogoBanko({ variant = "icon", size = 64, style }: LogoBankoProps) {
   const colorScheme = useColorScheme() ?? "light";
-  const theme = Colors[colorScheme];
 
   let source;
   if (variant === "icon") {

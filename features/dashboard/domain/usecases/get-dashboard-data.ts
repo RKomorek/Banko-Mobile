@@ -28,7 +28,6 @@ export class GetDashboardDataUseCase {
         error: null,
       };
     } catch (error) {
-      console.error('Error in GetDashboardDataUseCase:', error);
       return {
         user: { name: '', surname: '', email: '' },
         balance: '0.00',

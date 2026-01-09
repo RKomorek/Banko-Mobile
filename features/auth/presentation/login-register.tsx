@@ -30,7 +30,6 @@ export default function LoginRegisterScreen() {
 
   const handleAuth = async () => {
     setLoading(true);
-    console.log('[LoginRegister] handleAuth start', { isLogin, email });
     
     // Validações antes de tentar autenticar
     if (!email.trim()) {
@@ -96,7 +95,6 @@ export default function LoginRegisterScreen() {
         });
       }
     } catch (err: any) {
-      console.error('[LoginRegister] auth error', err);
       
       // Mensagens de erro amigáveis
       let errorMessage = "Ocorreu um erro. Tente novamente.";
