@@ -13,6 +13,7 @@ import Animated, {
   withTiming
 } from "react-native-reanimated";
 import { RootStackParamList } from "../../app/(tabs)/_layout";
+import { router } from "expo-router";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
 import { useTransactions } from "./presentation/hooks/use-transactions";
@@ -22,13 +23,13 @@ const typeOptions = [
   { label: "Cartão", value: "cartao" },
   { label: "Boleto", value: "boleto" },
   { label: "Pix", value: "pix" },
-];
+] as const;
 
 const entryExitOptions = [
   { label: "Todas", value: "all" },
   { label: "Entradas", value: "entrada" },
   { label: "Saídas", value: "saida" },
-];
+] as const;
 
 export default function TransactionsScreen() {
   const colorScheme = useColorScheme();
@@ -48,7 +49,6 @@ export default function TransactionsScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   // Animações para os filtros
   const filterHeight = useSharedValue(showFilters ? 1 : 0);
@@ -168,7 +168,7 @@ export default function TransactionsScreen() {
         </Animated.View>
         )}
         </View>
-        {/* DatePickers */}
+
         {showStartPicker && (
           <DateTimePicker
             value={dateRange.start ? new Date(dateRange.start) : new Date()}
@@ -283,12 +283,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 18 },
-  filterToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    alignSelf: "flex-end",
-  },
   filterTitle: {
     fontSize: 18,
     marginTop: -5,
@@ -364,8 +358,8 @@ const styles = StyleSheet.create({
   },
   rowTop: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   rowBottom: {

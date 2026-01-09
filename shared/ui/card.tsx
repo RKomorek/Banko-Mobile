@@ -1,6 +1,5 @@
 import { StyleSheet, Text, TextProps, View, ViewProps } from "react-native";
 
-// Card
 export function Card({ style, children, ...props }: ViewProps) {
   return (
     <View style={[styles.card, style]} {...props}>
@@ -9,7 +8,6 @@ export function Card({ style, children, ...props }: ViewProps) {
   );
 }
 
-// CardHeader
 export function CardHeader({ style, children, ...props }: ViewProps) {
   return (
     <View style={[styles.cardHeader, style]} {...props}>
@@ -18,7 +16,6 @@ export function CardHeader({ style, children, ...props }: ViewProps) {
   );
 }
 
-// CardTitle
 export function CardTitle({ style, children, ...props }: TextProps) {
   return (
     <Text style={[styles.cardTitle, style]} {...props}>
@@ -27,7 +24,6 @@ export function CardTitle({ style, children, ...props }: TextProps) {
   );
 }
 
-// CardDescription
 export function CardDescription({ style, children, ...props }: TextProps) {
   return (
     <Text style={[styles.cardDescription, style]} {...props}>
@@ -36,7 +32,6 @@ export function CardDescription({ style, children, ...props }: TextProps) {
   );
 }
 
-// CardAction
 export function CardAction({ style, children, ...props }: ViewProps) {
   return (
     <View style={[styles.cardAction, style]} {...props}>
@@ -45,7 +40,6 @@ export function CardAction({ style, children, ...props }: ViewProps) {
   );
 }
 
-// CardContent
 export function CardContent({ style, children, ...props }: ViewProps) {
   return (
     <View style={[styles.cardContent, style]} {...props}>
@@ -54,7 +48,6 @@ export function CardContent({ style, children, ...props }: ViewProps) {
   );
 }
 
-// CardFooter
 export function CardFooter({ style, children, ...props }: ViewProps) {
   return (
     <View style={[styles.cardFooter, style]} {...props}>

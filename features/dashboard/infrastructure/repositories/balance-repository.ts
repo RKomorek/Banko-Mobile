@@ -4,7 +4,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 export class BalanceRepository {
   async getBalance(): Promise<string> {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) return '0.00';
       if (!db) {
         console.warn('Firestore não disponível');

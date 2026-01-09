@@ -94,9 +94,7 @@ export default function TransactionForm({
   const normalizeDate = (date: any) => {
     if (!date) return new Date().toISOString().slice(0, 10);
     if (typeof date === "string") {
-      // Se já está no formato ISO, retorna
       if (/^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
-      // Se é outro formato, tenta converter
       const d = new Date(date);
       if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
       return new Date().toISOString().slice(0, 10);
@@ -104,7 +102,6 @@ export default function TransactionForm({
     if (date instanceof Date) {
       return date.toISOString().slice(0, 10);
     }
-    // Firestore Timestamp
     if (date?.seconds) {
       return new Date(date.seconds * 1000).toISOString().slice(0, 10);
     }
@@ -139,7 +136,6 @@ export default function TransactionForm({
     },
   });
 
-  // Bloqueia navegação enquanto não salvar/cancelar
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (!canLeaveRef.current) {
@@ -149,7 +145,6 @@ export default function TransactionForm({
     return unsubscribe;
   }, []);
 
-  // Oculta a tab bar apenas nesta tela
   useEffect(() => {
     navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
     return () => {
@@ -165,7 +160,6 @@ export default function TransactionForm({
   const [amountMasked, setAmountMasked] = useState("");
   const isNegative = watch("isNegative");
 
-  // Ref para garantir atualização imediata do bloqueio
   const canLeaveRef = React.useRef(false);
 
   function formatDate(dateString: string) {
@@ -257,7 +251,6 @@ export default function TransactionForm({
     }
   };
 
-  // Busca o documento da conta do usuário
   const getAccountDocRef = async (userId: string) => {
     if (!db) {
       console.warn('Firestore não disponível');
@@ -271,7 +264,6 @@ export default function TransactionForm({
     return null;
   };
 
-  // Atualiza o saldo da conta
   const updateAccountBalance = async (userId: string, value: number) => {
     const accountRef = await getAccountDocRef(userId);
     if (accountRef) {
@@ -321,14 +313,12 @@ export default function TransactionForm({
       let balanceChange = amount;
 
       if (mergedInitialValues?.id) {
-        // EDIÇÃO: calcula diferença
         const previousAmount = Math.abs(mergedInitialValues.amount) * (mergedInitialValues.isNegative ? -1 : 1);
         balanceChange = amount - previousAmount;
 
         const txRef = doc(db, "transactions", mergedInitialValues.id);
         await updateDoc(txRef, payload);
       } else {
-        // NOVA TRANSAÇÃO
         const txCollection = collection(db, "transactions");
         await addDoc(txCollection, {
           ...payload,
@@ -336,7 +326,6 @@ export default function TransactionForm({
         });
       }
 
-      // Atualiza saldo da conta
       await updateAccountBalance(user.uid, balanceChange);
 
       onSaved();
@@ -378,7 +367,6 @@ export default function TransactionForm({
             </Text>
           </View>
 
-          {/* Tipo de pagamento */}
           <View style={styles.radioGroup}>
             {["cartao", "boleto", "pix"].map((type) => (
               <Controller
@@ -411,7 +399,6 @@ export default function TransactionForm({
             <Text style={[styles.error, { color: theme.destructive }]}>{errors.type.message}</Text>
           )}
 
-          {/* Entrada/Saída */}
           <View style={styles.movingTypeGroup}>
             <Controller
               control={control}
@@ -453,7 +440,6 @@ export default function TransactionForm({
             />
           </View>
 
-          {/* Valor */}
           <Controller
             control={control}
             name="amount"
@@ -485,7 +471,6 @@ export default function TransactionForm({
             )}
           />
 
-          {/* Descrição */}
           <Controller
             control={control}
             name="title"
@@ -506,7 +491,6 @@ export default function TransactionForm({
             )}
           />
 
-          {/* Data */}
           <Controller
             control={control}
             name="date"
@@ -546,7 +530,6 @@ export default function TransactionForm({
             )}
           />
 
-          {/* Upload de recibo */}
           <View style={{ marginVertical: 10 }}>
             <ReceiptUploadBox
               onPress={pickReceipt}
@@ -561,7 +544,6 @@ export default function TransactionForm({
               style={{ marginVertical: 8 }}
             />
           )}
-          {/* Botões fixos na base */}
           <View style={[styles.footerFixed, { backgroundColor: theme.background }]}>
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: theme.card, borderColor: theme.primary }]}

@@ -1,5 +1,4 @@
 import { db } from '@/firebase';
-import { applyMockPagination, filterMockTransactions, mockTransactions, orderMockTransactions } from '@/shared/mocks/transactions';
 import { useTransactionsStore } from '@/shared/stores';
 import { collection, getDocs, limit, orderBy, query, startAfter, where, type DocumentData, type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -88,7 +87,7 @@ async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs)
     constraints.push(startAfter(after));
   }
 
-  const snapshot = await getDocs(query(collection(db, 'transactions'), ...constraints));
+  const snapshot = await getDocs(query(collection(db!, 'transactions'), ...constraints));
 
   const items: Transaction[] = snapshot.docs.map((docSnapshot) => {
     const data = docSnapshot.data();
@@ -118,16 +117,12 @@ async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs)
 export function useTransactions({
   userId,
   filters,
-  useMockData = false,
 }: {
   userId: string | null;
   filters: TransactionFilters;
-  useMockData?: boolean;
 }) {
   const store = useTransactionsStore();
   let lastDoc: QueryDocumentSnapshot<DocumentData> | null = null;
-  let mockSource: Transaction[] = [];
-  let mockCursor = 0;
 
   const shouldReset = useMemo(
     () => [filters.type, filters.startDate, filters.endDate].join('-'),
@@ -135,23 +130,6 @@ export function useTransactions({
   );
 
   useEffect(() => {
-    if (useMockData) {
-      store.setLoading(true);
-      const filtered = orderMockTransactions(filterMockTransactions(mockTransactions, filters));
-      const normalizedFiltered = filtered.map((transaction) => ({
-        ...transaction,
-        isNegative: transaction.amount < 0,
-      }));
-      const initialPage = applyMockPagination(normalizedFiltered, 0, PAGE_SIZE);
-      mockSource = normalizedFiltered;
-      mockCursor = initialPage.length;
-      store.setTransactions(initialPage.map((t) => ({ ...t, isNegative: t.amount < 0 })));
-      store.setHasMore(initialPage.length < normalizedFiltered.length);
-      store.setError(null);
-      store.setLoading(false);
-      return;
-    }
-
     let ignore = false;
 
     const load = async () => {
@@ -192,31 +170,14 @@ export function useTransactions({
       }
     };
 
-    mockSource = [];
-    mockCursor = 0;
     load();
 
     return () => {
       ignore = true;
     };
-  }, [userId, shouldReset, filters, useMockData, store]);
+  }, [userId, shouldReset, filters, store]);
 
   const loadMore = useCallback(async () => {
-    if (useMockData) {
-      if (!store.hasMore || store.loadingMore) {
-        return;
-      }
-
-      store.setLoadingMore(true);
-      const nextItems = applyMockPagination(mockSource, mockCursor, PAGE_SIZE);
-      const nextCursor = mockCursor + nextItems.length;
-      store.appendTransactions(nextItems.map((t) => ({ ...t, isNegative: t.amount < 0 })));
-      mockCursor = nextCursor;
-      store.setHasMore(nextCursor < mockSource.length);
-      store.setLoadingMore(false);
-      return;
-    }
-
     if (!userId || !store.hasMore || store.loadingMore || store.loading || !lastDoc) {
       return;
     }
@@ -239,26 +200,9 @@ export function useTransactions({
     } finally {
       store.setLoadingMore(false);
     }
-  }, [filters, store.loading, useMockData, userId, store.hasMore, store.loadingMore, store]);
+  }, [filters, store.loading, userId, store.hasMore, store.loadingMore, store]);
 
   const refresh = useCallback(async () => {
-    if (useMockData) {
-      store.setLoading(true);
-      const filtered = orderMockTransactions(filterMockTransactions(mockTransactions, filters));
-      const normalizedFiltered = filtered.map((transaction) => ({
-        ...transaction,
-        isNegative: transaction.amount < 0,
-      }));
-      const initialPage = applyMockPagination(normalizedFiltered, 0, PAGE_SIZE);
-      mockSource = normalizedFiltered;
-      mockCursor = initialPage.length;
-      store.setTransactions(initialPage.map((t) => ({ ...t, isNegative: t.amount < 0 })));
-      store.setHasMore(initialPage.length < normalizedFiltered.length);
-      store.setError(null);
-      store.setLoading(false);
-      return;
-    }
-
     store.setLoading(true);
 
     if (!userId) {
@@ -283,7 +227,7 @@ export function useTransactions({
     } finally {
       store.setLoading(false);
     }
-  }, [filters, useMockData, userId, store]);
+  }, [filters, userId, store]);
 
   const clearError = useCallback(() => store.setError(null), [store]);
 
