@@ -13,6 +13,9 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     try {
+      if (!auth) {
+        throw new Error("Auth não inicializado");
+      }
       await signOut(auth);
     } catch {
       Toast.show({
