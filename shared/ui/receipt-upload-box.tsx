@@ -28,8 +28,6 @@ export function ReceiptUploadBox({
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   
-  // Debug
-  console.log('ReceiptUploadBox:', { imageUri, isImage, fileName, fileType });
   
   return (
     <View>
