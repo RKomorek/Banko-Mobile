@@ -1,6 +1,6 @@
-import { useAuthState } from "@/features/auth/data/use-auth";
 import LoginRegisterScreen from "@/features/auth/presentation/login-register";
 import { Colors } from "@/shared/constants/theme";
+import { useAuth } from "@/shared/context/auth-context";
 import { IconSymbol } from "@/shared/ui/icon-symbol";
 import { Tabs } from "expo-router";
 import React from "react";
@@ -33,7 +33,7 @@ const TabBarIcon = ({ focused, color, name }: { focused: boolean; color: string;
 };
 
 export default function TabsLayout() {
-  const { user, loading } = useAuthState();
+  const { user, loading } = useAuth();
   const colorScheme = useColorScheme();
 
   console.log('[TabsLayout] Render - loading:', loading, 'user:', user?.email || 'no user');
@@ -91,11 +91,7 @@ export default function TabsLayout() {
           }) => ({
             title: route?.params?.initialValues ? 'Editar transação' : 'Nova transação',
             tabBarIcon: ({ color, focused }) => (
-              <TabBarIcon 
-                focused={focused} 
-                color={color} 
-                name={route?.params?.initialValues ? "pencil" : "card-plus-outline"} 
-              />
+              <TabBarIcon focused={focused} color={color} name={route?.params?.initialValues ? "pencil" : "add-card"} />
             ),
             tabBarStyle: { display: "none" },
           })}

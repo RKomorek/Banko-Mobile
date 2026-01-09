@@ -13,7 +13,7 @@ export function useProfile() {
   const { userProfile, loading, error, setUserProfile, setLoading, setError } = useProfileStore();
 
   const fetchUserProfile = async () => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) {
       setLoading(false);
       return;
@@ -46,7 +46,7 @@ export function useProfile() {
   };
 
   const updateProfile = async (data: any) => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) return;
 
     try {

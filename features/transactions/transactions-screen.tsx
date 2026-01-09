@@ -1,10 +1,8 @@
 import { useTransactionsStore } from "@/shared/stores/transactions-store";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
-import { RootStackParamList } from "../../app/(tabs)/_layout";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
 import { useTransactions } from "./presentation/hooks/use-transactions";
@@ -14,13 +12,13 @@ const typeOptions = [
   { label: "Cartão", value: "cartao" },
   { label: "Boleto", value: "boleto" },
   { label: "Pix", value: "pix" },
-];
+] as const;
 
 const entryExitOptions = [
   { label: "Todas", value: "all" },
   { label: "Entradas", value: "entrada" },
   { label: "Saídas", value: "saida" },
-];
+] as const;
 
 export default function TransactionsScreen() {
   const colorScheme = useColorScheme();
@@ -40,7 +38,6 @@ export default function TransactionsScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
 
   if (loading && transactions.length === 0) {
@@ -145,7 +142,7 @@ export default function TransactionsScreen() {
         </>
         )}
         </View>
-        {/* DatePickers */}
+
         {showStartPicker && (
           <DateTimePicker
             value={dateRange.start ? new Date(dateRange.start) : new Date()}
@@ -182,7 +179,10 @@ export default function TransactionsScreen() {
                 styles.itemRow,
                 { backgroundColor: theme.card, borderColor: theme.input }
               ]}
-              onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
+              onPress={() => router.push({
+                pathname: "/(tabs)/transaction-form",
+                params: { initialValues: item as any }
+              })}
             >
               {/* Linha 1: Descrição | Tipo */}
               <View style={styles.rowTop}>
@@ -255,12 +255,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 18 },
-  filterToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    alignSelf: "flex-end",
-  },
   filterTitle: {
     fontSize: 18,
     marginTop: -5,
@@ -336,8 +330,8 @@ const styles = StyleSheet.create({
   },
   rowTop: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   rowBottom: {

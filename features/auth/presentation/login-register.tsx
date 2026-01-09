@@ -2,19 +2,19 @@ import { auth, db } from "@/firebase";
 import { Colors } from "@/shared/constants/theme";
 import { LogoBanko } from "@/shared/ui/logo-banko";
 import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from "firebase/auth";
 import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -65,12 +65,10 @@ export default function LoginRegisterScreen() {
     
     try {
       if (isLogin) {
-        // LOGIN
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth!, email, password);
       } else {
-        // CADASTRO
         const userCredential = await createUserWithEmailAndPassword(
-          auth,
+          auth!,
           email,
           password
         );
@@ -84,10 +82,9 @@ export default function LoginRegisterScreen() {
           createdAt: new Date(),
         });
 
-        // Adiciona registro na tabela accounts (sem notificar o usuário)
         await addDoc(collection(db, "accounts"), {
           user_id: user.uid,
-          numero_conta: Math.floor(Math.random() * 9000000000 + 1000000000).toString(), // número de conta aleatório
+          numero_conta: Math.floor(Math.random() * 9000000000 + 1000000000).toString(),
           saldo: 1000,
           created_at: new Date().toISOString(),
         });
@@ -220,7 +217,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingLeft:12,
+    padding:14,
     fontSize: 16,
     marginBottom: 14,
   },

@@ -1,8 +1,8 @@
-import { FinancialMetrics } from '@/features/auth/domain/financial-metrics';
 import { useDashboard } from '@/features/dashboard/presentation/use-dashboard';
 import { Colors } from '@/shared/constants/theme';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { HelloWave } from '@/shared/ui/hello-wave';
+import { lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+const FinancialMetrics = lazy(() => import('@/features/auth/domain/financial-metrics').then(module => ({ default: module.FinancialMetrics })));
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -91,7 +92,7 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* Balance Card */}
+
         <View style={styles.container}>
           <Card
             style={[
@@ -207,9 +208,16 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* Financial Metrics */}
         <View style={styles.container}>
-          <FinancialMetrics />
+          <Suspense
+            fallback={
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={theme.primary} />
+              </View>
+            }
+          >
+            <FinancialMetrics />
+          </Suspense>
         </View>
         </ScrollView>
       </View>

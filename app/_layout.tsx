@@ -1,3 +1,4 @@
+import { AuthProvider } from '@/shared/context/auth-context';
 import { useColorScheme } from '@/shared/hooks/use-color-scheme';
 import { useInitializeStores } from '@/shared/stores';
 import ToastHandler from '@/shared/ui/toast-handler';
@@ -19,13 +20,15 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-        <ToastHandler />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+          <ToastHandler />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

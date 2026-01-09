@@ -1,3 +1,5 @@
+import { db } from '@/firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   collection,
   getDocs,
@@ -5,6 +7,7 @@ import {
   orderBy,
   query,
   startAfter,
+  Timestamp,
   where,
   type DocumentData,
   type QueryConstraint,
@@ -12,15 +15,9 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { db } from '@/firebase';
-import {
-  applyMockPagination,
-  filterMockTransactions,
-  mockTransactions,
-  orderMockTransactions,
-} from '@/shared/mocks/transactions';
-
 const PAGE_SIZE = 10;
+const CACHE_KEY = 'transactions_cache';
+const CACHE_EXPIRY = 5 * 60 * 1000;
 
 export type TransactionType = 'cartao' | 'boleto' | 'pix';
 
@@ -31,12 +28,14 @@ export type Transaction = {
   type: TransactionType;
   date: Date;
   receiptUrl?: string | null;
+  isNegative?: boolean;
 };
 
 export type TransactionFilters = {
   type: TransactionType | 'all';
   startDate: string | null;
   endDate: string | null;
+  entryExit?: 'all' | 'entrada' | 'saida';
 };
 
 type FirestoreQueryArgs = {
@@ -80,6 +79,45 @@ function normalizeDate(value: unknown) {
   return new Date();
 }
 
+async function getCachedTransactions(userId: string, filters: TransactionFilters): Promise<Transaction[] | null> {
+  try {
+    const cacheKey = `${CACHE_KEY}_${userId}_${JSON.stringify(filters)}`;
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (!cached) return null;
+
+    const { data, timestamp } = JSON.parse(cached);
+    const now = Date.now();
+
+    if (now - timestamp > CACHE_EXPIRY) {
+      await AsyncStorage.removeItem(cacheKey);
+      return null;
+    }
+
+    return data.map((item: any) => ({
+      ...item,
+      date: new Date(item.date),
+    }));
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedTransactions(userId: string, filters: TransactionFilters, transactions: Transaction[]) {
+  try {
+    const cacheKey = `${CACHE_KEY}_${userId}_${JSON.stringify(filters)}`;
+    const data = transactions.map(item => ({
+      ...item,
+      date: item.date.toISOString(),
+    }));
+    await AsyncStorage.setItem(cacheKey, JSON.stringify({
+      data,
+      timestamp: Date.now(),
+    }));
+  } catch (error) {
+    console.warn('Failed to cache transactions:', error);
+  }
+}
+
 async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs): Promise<FirestoreResult> {
   const constraints: QueryConstraint[] = [where('userId', '==', userId), orderBy('date', 'desc'), limit(PAGE_SIZE)];
 
@@ -87,16 +125,22 @@ async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs)
     constraints.splice(1, 0, where('type', '==', filters.type));
   }
 
+  if (filters.entryExit === 'entrada') {
+    constraints.splice(constraints.length - 1, 0, where('isNegative', '==', false));
+  } else if (filters.entryExit === 'saida') {
+    constraints.splice(constraints.length - 1, 0, where('isNegative', '==', true));
+  }
+
   if (filters.startDate) {
     const start = new Date(filters.startDate);
     start.setHours(0, 0, 0, 0);
-    constraints.splice(constraints.length - 1, 0, where('date', '>=', start));
+    constraints.splice(constraints.length - 1, 0, where('date', '>=', Timestamp.fromDate(start)));
   }
 
   if (filters.endDate) {
     const end = new Date(filters.endDate);
     end.setHours(23, 59, 59, 999);
-    constraints.splice(constraints.length - 1, 0, where('date', '<=', end));
+    constraints.splice(constraints.length - 1, 0, where('date', '<=', Timestamp.fromDate(end)));
   }
 
   if (after) {
@@ -115,6 +159,7 @@ async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs)
       type: (data.type ?? 'cartao') as TransactionType,
       date: normalizeDate(data.date),
       receiptUrl: data.receiptUrl ?? null,
+      isNegative: data.isNegative ?? false,
     };
   });
 
@@ -127,11 +172,9 @@ async function fetchTransactions({ userId, filters, after }: FirestoreQueryArgs)
 export function useTransactions({
   userId,
   filters,
-  useMockData = false,
 }: {
   userId: string | null;
   filters: TransactionFilters;
-  useMockData?: boolean;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,63 +183,52 @@ export function useTransactions({
   const [hasMore, setHasMore] = useState(true);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [error, setError] = useState<TransactionListError | null>(null);
-  const [mockSource, setMockSource] = useState<Transaction[]>([]);
-  const [mockCursor, setMockCursor] = useState(0);
 
   const shouldReset = useMemo(
-    () => [filters.type, filters.startDate, filters.endDate].join('-'),
-    [filters.endDate, filters.startDate, filters.type]
+    () => [filters.type, filters.startDate, filters.endDate, filters.entryExit].join('-'),
+    [filters.endDate, filters.startDate, filters.type, filters.entryExit]
   );
 
   useEffect(() => {
-    if (useMockData) {
-      setLoading(true);
-      const filtered = orderMockTransactions(filterMockTransactions(mockTransactions, filters));
-      const initialPage = applyMockPagination(filtered, 0, PAGE_SIZE);
-      setMockSource(filtered);
-      setTransactions(initialPage);
-      setMockCursor(initialPage.length);
-      setHasMore(initialPage.length < filtered.length);
-      setLastDoc(null);
-      setError(null);
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
     let ignore = false;
-
+  
     const load = async () => {
       if (!userId) {
         setTransactions([]);
-        setLoading(false);
         setHasMore(false);
+        setLoading(false);
         return;
       }
-
+  
       setLoading(true);
-      setHasMore(true);
       setError(null);
-
+  
       try {
+        const cached = await getCachedTransactions(userId, filters);
+        if (cached && cached.length > 0 && !ignore) {
+          setTransactions(cached);
+          setHasMore(cached.length === PAGE_SIZE);
+        }
+  
         const { items, lastDoc: newLastDoc } = await fetchTransactions({
           userId,
           filters,
         });
-
+  
         if (ignore) return;
-
+  
         setTransactions(items);
         setLastDoc(newLastDoc);
         setHasMore(items.length === PAGE_SIZE);
+  
+        await setCachedTransactions(userId, filters, items);
       } catch (err) {
         if (!ignore) {
           setError({
             source: 'initial',
-            message: parseErrorMessage(err, 'Tente novamente em instantes.'),
+            message: parseErrorMessage(err, 'Erro ao carregar transações'),
           });
           setTransactions([]);
-          setLastDoc(null);
           setHasMore(false);
         }
       } finally {
@@ -206,31 +238,16 @@ export function useTransactions({
         }
       }
     };
-
-    setMockSource([]);
-    setMockCursor(0);
+  
     load();
-
+  
     return () => {
       ignore = true;
     };
-  }, [userId, shouldReset, filters, useMockData]);
+  }, [userId, shouldReset]);
+  
 
   const loadMore = useCallback(async () => {
-    if (useMockData) {
-      if (!hasMore || loadingMore) {
-        return;
-      }
-
-      setLoadingMore(true);
-      const nextItems = applyMockPagination(mockSource, mockCursor, PAGE_SIZE);
-      const nextCursor = mockCursor + nextItems.length;
-      setTransactions((prev) => [...prev, ...nextItems]);
-      setMockCursor(nextCursor);
-      setHasMore(nextCursor < mockSource.length);
-      setLoadingMore(false);
-      return;
-    }
 
     if (!userId || !hasMore || loadingMore || loading || !lastDoc) {
       return;
@@ -256,21 +273,10 @@ export function useTransactions({
     } finally {
       setLoadingMore(false);
     }
-  }, [filters, hasMore, lastDoc, loading, loadingMore, mockCursor, mockSource, useMockData, userId]);
+  }, [filters, hasMore, lastDoc, loading, loadingMore, userId]);
 
   const refresh = useCallback(async () => {
-    if (useMockData) {
-      setRefreshing(true);
-      const filtered = orderMockTransactions(filterMockTransactions(mockTransactions, filters));
-      const initialPage = applyMockPagination(filtered, 0, PAGE_SIZE);
-      setMockSource(filtered);
-      setTransactions(initialPage);
-      setMockCursor(initialPage.length);
-      setHasMore(initialPage.length < filtered.length);
-      setError(null);
-      setRefreshing(false);
-      return;
-    }
+
 
     if (!userId || loading) {
       return;
@@ -295,7 +301,7 @@ export function useTransactions({
     } finally {
       setRefreshing(false);
     }
-  }, [filters, loading, useMockData, userId]);
+  }, [filters, loading, userId]);
 
   const clearError = useCallback(() => setError(null), []);
 

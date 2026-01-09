@@ -5,7 +5,7 @@ import { User } from '../../domain/entities/entities';
 export class UserRepository {
   async getUser(): Promise<User | null> {
     try {
-      const firebaseUser = auth.currentUser;
+      const firebaseUser = auth?.currentUser;
       if (!firebaseUser) return null;
       if (!db) {
         console.warn('Firestore não disponível');

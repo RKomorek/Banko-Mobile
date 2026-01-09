@@ -22,7 +22,7 @@ export function FinancialMetrics() {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) {
         setTransactions([]);
         setLoading(false);
@@ -37,7 +37,6 @@ export function FinancialMetrics() {
       const txSnap = await getDocs(txQ);
       const txs = txSnap.docs.map((doc) => {
         const tx = doc.data();
-        // Normaliza os dados para o formato esperado
         return {
           data: tx.date?.toDate ? tx.date.toDate() : new Date(tx.date),
           movimentacao: tx.isNegative ? "saida" : "entrada",
@@ -114,7 +113,6 @@ export function FinancialMetrics() {
       {}
     );
 
-    // Formata o nome do método de pagamento
     const paymentLabels: Record<string, string> = {
       boleto: "Boleto",
       cartao: "Cartão",

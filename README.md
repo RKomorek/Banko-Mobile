@@ -144,6 +144,46 @@ npm run ios
 npm run web
 ```
 
+### ⚠️ **Solução de Problemas**
+
+#### Erro "TypeError: fetch failed" ao iniciar
+
+Se você encontrar o erro `TypeError: fetch failed` ao executar `npm start`, isso geralmente ocorre quando o Expo CLI tenta buscar informações de versões de módulos nativos e há problemas de conexão, proxy ou firewall.
+
+**Soluções:**
+
+1. **Modo Offline (Recomendado)**
+```bash
+npm run start:offline
+```
+
+2. **Modo Local**
+```bash
+npm run start:local
+```
+
+3. **Limpar cache do Expo**
+```bash
+npx expo start --clear
+```
+
+4. **Verificar conexão com internet**
+   - Certifique-se de que sua conexão está funcionando
+   - Verifique se há firewall ou proxy bloqueando requisições HTTPS
+
+5. **Configurar variáveis de ambiente de proxy (se necessário)**
+```bash
+# Windows (PowerShell)
+$env:HTTP_PROXY="http://seu-proxy:porta"
+$env:HTTPS_PROXY="http://seu-proxy:porta"
+
+# Linux/Mac
+export HTTP_PROXY="http://seu-proxy:porta"
+export HTTPS_PROXY="http://seu-proxy:porta"
+```
+
+**Nota:** O modo offline (`--offline`) funciona perfeitamente para desenvolvimento local e evita requisições desnecessárias à API do Expo.
+
 ## 📊 Funcionalidades Técnicas
 
 ### **Gerenciamento de Estado**
