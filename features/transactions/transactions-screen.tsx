@@ -1,15 +1,11 @@
-import { useTransactions, type TransactionFilters } from "@/shared/hooks/use-transactions";
+import { useTransactionsStore } from "@/shared/stores/transactions-store";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { RootStackParamList } from "../../app/(tabs)/_layout";
-import { auth } from "../../firebase";
+import { router } from "expo-router";
+import React, { useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
-import { TransactionsList } from "./transactions-list";
+import { useTransactions } from "./presentation/hooks/use-transactions";
 
 const typeOptions = [
   { label: "Todos", value: "all" },
@@ -28,56 +24,40 @@ export default function TransactionsScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const fontFamily = Fonts.sans;
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  const [typeFilter, setTypeFilter] = useState<"all" | "cartao" | "boleto" | "pix">("all");
-  const [entryExitFilter, setEntryExitFilter] = useState<"all" | "entrada" | "saida">("all");
-  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const { transactions, loading, loadingMore, loadMore } = useTransactions();
+  const { 
+    typeFilter, 
+    entryExitFilter, 
+    dateRange,
+    setTypeFilter,
+    setEntryExitFilter,
+    setDateRange
+  } = useTransactionsStore();
+
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
-  const user = auth.currentUser;
 
-  const filters: TransactionFilters = useMemo(
-    () => ({
-      type: typeFilter,
-      startDate: dateRange.start,
-      endDate: dateRange.end,
-      entryExit: entryExitFilter,
-    }),
-    [typeFilter, dateRange.start, dateRange.end, entryExitFilter]
-  );
-
-  const {
-    transactions,
-    loading,
-    refreshing,
-    loadingMore,
-    hasMore,
-    loadMore,
-    refresh,
-    error,
-    clearError,
-  } = useTransactions({
-    userId: user?.uid ?? null,
-    filters,
-  });
-
-  const handleTransactionPress = (transaction: any) => {
-    navigation.navigate("transaction-form", { initialValues: transaction });
-  };
+  if (loading && transactions.length === 0) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <View style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerFixed}>
           <Text style={[styles.title, { color: theme.foreground, fontFamily }]}>Transações</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 8 }}>
-            <Text style={[styles.filterTitle, { color: theme.foreground }]}>Filtros</Text>
+          <View style={styles.filterHeaderRow}>
+              <Text style={[styles.filterTitle, { color: showFilters ? theme.primary : theme.mutedForeground }]}>Filtros</Text>
             <TouchableOpacity
               onPress={() => setShowFilters(prev => !prev)}
-              style={{ marginTop: -10, marginRight: 5 }}
+              style={styles.filterToggleButton}
             >
               <IconSymbol
                 name="filter"
@@ -87,77 +67,80 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           </View>
           {showFilters && (
-            <>
-              <View style={{ flexDirection: "row", marginBottom: 12 }}>
-                {typeOptions.map(option => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: typeFilter === option.value ? theme.primary : theme.card,
-                        borderColor: typeFilter === option.value ? theme.primary : theme.border,
-                      },
-                    ]}
-                    onPress={() => setTypeFilter(option.value as any)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={{ color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ flexDirection: "row", marginBottom: 12 }}>
-                {entryExitOptions.map(option => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: entryExitFilter === option.value ? theme.primary : theme.card,
-                        borderColor: entryExitFilter === option.value ? theme.primary : theme.border,
-                      },
-                    ]}
-                    onPress={() => setEntryExitFilter(option.value as any)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={{ color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                <TouchableOpacity
-                  style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
-                  onPress={() => setShowStartPicker(true)}
-                >
-                  <Text style={{ color: theme.mutedForeground }}>De</Text>
-                  <Text style={{ color: theme.foreground, marginLeft: 8 }}>
-                    {dateRange.start ? new Date(dateRange.start).toLocaleDateString("pt-BR") : "Data inicial"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
-                  onPress={() => setShowEndPicker(true)}
-                >
-                  <Text style={{ color: theme.mutedForeground }}>Até</Text>
-                  <Text style={{ color: theme.foreground, marginLeft: 8 }}>
-                    {dateRange.end ? new Date(dateRange.end).toLocaleDateString("pt-BR") : "Data final"}
-                  </Text>
-                </TouchableOpacity>
-                {(dateRange.start || dateRange.end) && (
-                  <TouchableOpacity
-                    style={[styles.clearButton, { borderColor: theme.primary }]}
-                    onPress={() => setDateRange({ start: null, end: null })}
-                  >
-                    <Text style={{ color: theme.primary }}>Limpar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
+          <>
+          {/* Filtros de tipo */}
+          <View style={styles.filtersRow}>
+            {typeOptions.map(option => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: typeFilter === option.value ? theme.primary : theme.card,
+                    borderColor: typeFilter === option.value ? theme.primary : theme.border,
+                  },
+                ]}
+                onPress={() => setTypeFilter(option.value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.filterText, { color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* Filtros de entrada/saída */}
+          <View style={styles.filtersRow}>
+            {entryExitOptions.map(option => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: entryExitFilter === option.value ? theme.primary : theme.card,
+                    borderColor: entryExitFilter === option.value ? theme.primary : theme.border,
+                  },
+                ]}
+                onPress={() => setEntryExitFilter(option.value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.filterText, { color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* Filtros de data com DatePicker */}
+          <View style={styles.dateButtonsRow}>
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+              onPress={() => setShowStartPicker(true)}
+            >
+              <Text style={styles.dateLabel}>De</Text>
+              <Text style={[styles.dateValue, { color: theme.foreground }]}>
+                {dateRange.start ? new Date(dateRange.start).toLocaleDateString("pt-BR") : "Data inicial"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+              onPress={() => setShowEndPicker(true)}
+            >
+              <Text style={styles.dateLabel}>Até</Text>
+              <Text style={[styles.dateValue, { color: theme.foreground }]}>
+                {dateRange.end ? new Date(dateRange.end).toLocaleDateString("pt-BR") : "Data final"}
+              </Text>
+            </TouchableOpacity>
+            {(dateRange.start || dateRange.end) && (
+              <TouchableOpacity
+                style={[styles.clearButton, { borderColor: theme.primary }]}
+                onPress={() => setDateRange({ start: null, end: null })}
+              >
+                <Text style={{ color: theme.primary }}>Limpar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+        )}
         </View>
 
         {showStartPicker && (
@@ -168,7 +151,7 @@ export default function TransactionsScreen() {
             onChange={(_, selectedDate) => {
               setShowStartPicker(false);
               if (selectedDate) {
-                setDateRange(prev => ({ ...prev, start: selectedDate.toISOString().slice(0, 10) }));
+                setDateRange({ ...dateRange, start: selectedDate.toISOString().slice(0, 10) });
               }
             }}
           />
@@ -181,51 +164,90 @@ export default function TransactionsScreen() {
             onChange={(_, selectedDate) => {
               setShowEndPicker(false);
               if (selectedDate) {
-                setDateRange(prev => ({ ...prev, end: selectedDate.toISOString().slice(0, 10) }));
+                setDateRange({ ...dateRange, end: selectedDate.toISOString().slice(0, 10) });
               }
             }}
           />
         )}
-
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, { color: theme.destructive }]}>{error.message}</Text>
-            <TouchableOpacity onPress={clearError}>
-              <Text style={{ color: theme.primary }}>Fechar</Text>
+        {/* Lista */}
+        <FlatList
+          data={transactions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.itemRow,
+                { backgroundColor: theme.card, borderColor: theme.input }
+              ]}
+              onPress={() => router.push({
+                pathname: "/(tabs)/transaction-form",
+                params: { initialValues: item as any }
+              })}
+            >
+              {/* Linha 1: Descrição | Tipo */}
+              <View style={styles.rowTop}>
+                <Text 
+                  style={[styles.itemTitle, { color: theme.foreground }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.title}
+                </Text>
+                <Text style={{
+                  color: item.amount && item.isNegative ? theme.destructive : theme.constructive,
+                  fontSize: 15,
+                  fontWeight: "600",
+                  marginLeft: 8
+                }}>
+                  {item.type === "pix" ? "Pix" : item.type === "cartao" ? "Cartão" : "Boleto"}
+                </Text>
+              </View>
+              {/* Linha 2: Data | Valor */}
+              <View style={styles.rowBottom}>
+                <Text style={[styles.itemDate, { color: theme.mutedForeground }]}>
+                  {item.date
+                    ? new Date(
+                        item.date.seconds
+                          ? item.date.seconds * 1000
+                          : item.date
+                      ).toLocaleDateString("pt-BR")
+                    : ""}
+                </Text>
+                <Text style={[
+                  styles.itemAmount,
+                  {
+                    color:
+                      item.amount && item.isNegative
+                        ? theme.destructive
+                        : theme.constructive
+                  }
+                ]}>
+                  {item.amount
+                    ? Math.abs(item.amount)?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                    : "-"}
+                </Text>
+              </View>
             </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={{ flex: 1 }}>
-          <TransactionsList
-            transactions={transactions.map(t => ({
-              ...t,
-              onPress: () => handleTransactionPress({
-                id: t.id,
-                title: t.title,
-                amount: t.amount,
-                type: t.type,
-                date: t.date instanceof Date ? t.date : new Date(t.date),
-                isNegative: t.isNegative,
-                receiptUrl: t.receiptUrl,
-              }),
-            }))}
-            theme={theme}
-            loading={loading}
-            refreshing={refreshing}
-            loadingMore={loadingMore}
-            onRefresh={refresh}
-            onLoadMore={hasMore ? loadMore : () => {}}
-          />
-        </View>
+          )}
+          ListEmptyComponent={<Text style={[styles.empty, { color: theme.mutedForeground }]}>Nenhuma transação encontrada.</Text>}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                <ActivityIndicator color={theme.primary} />
+              </View>
+            ) : null
+          }
+        />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1, padding: 16 },
+  safeArea: { flex: 1, paddingTop: 52 },
+  container: { flex: 1, padding: 10 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   headerFixed: {
     paddingBottom: 0,
@@ -240,11 +262,35 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 6,
+    marginBottom: 8,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  filtersRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  filterHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 8,
+  },
+  filterToggleButton: {
+    marginTop: -10,
+    marginRight: 5,
+  },
+  dateButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
   dateButton: {
     flexDirection: "row",
@@ -252,10 +298,20 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 6,
     marginBottom: 8,
+  },
+  dateLabel: {
+    color: "#999",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  dateValue: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
   clearButton: {
     borderWidth: 1,
@@ -265,16 +321,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  errorContainer: {
-    padding: 12,
+  itemRow: {
     borderRadius: 8,
-    marginBottom: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  rowTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 8,
   },
-  errorText: {
-    flex: 1,
-    fontSize: 14,
+  rowBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
+  itemTitle: { fontSize: 16, fontWeight: "500", flex: 1 },
+  itemAmount: { fontSize: 15, fontWeight: "600", textAlign: "right" },
+  itemDate: { fontSize: 16, fontWeight: "500" },
+  empty: { textAlign: "center", marginTop: 32 },
 });

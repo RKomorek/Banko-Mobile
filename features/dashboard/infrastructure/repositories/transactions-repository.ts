@@ -1,12 +1,16 @@
-import { ChartData, Transaction } from '@/features/dashboard/domain/entities/dashboard';
+import { ChartData, Transaction } from '@/features/dashboard/domain/entities/entities';
 import { auth, db } from '@/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export class TransactionsRepository {
   async getTransactions(): Promise<Transaction[]> {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) return [];
+      if (!db) {
+        console.warn('Firestore não está disponível');
+        return [];
+      }
 
       const txQ = query(
         collection(db, 'transactions'),
@@ -20,7 +24,7 @@ export class TransactionsRepository {
         date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
       } as Transaction));
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('Erro ao buscar transações:', error);
       throw error;
     }
   }
@@ -31,7 +35,7 @@ export class TransactionsRepository {
     const meses: Set<string> = new Set();
 
     transactions.forEach(tx => {
-      const mes = `${tx.date.getFullYear()}-${String(tx.date.getMonth() + 1).padStart(2, '0')}`;
+      const mes = `${String(tx.date.getMonth() + 1).padStart(2, '0')}/${tx.date.getFullYear()}`;
       meses.add(mes);
 
       if (tx.isNegative) {
@@ -41,7 +45,11 @@ export class TransactionsRepository {
       }
     });
 
-    const mesesOrdenados = Array.from(meses).sort();
+    const mesesOrdenados = Array.from(meses).sort((a, b) => {
+      const [mesA, anoA] = a.split('/').map(Number);
+      const [mesB, anoB] = b.split('/').map(Number);
+      return anoA !== anoB ? anoA - anoB : mesA - mesB;
+    });
 
     return {
       labels: mesesOrdenados.length > 0 ? mesesOrdenados : ['Sem dados'],

@@ -22,8 +22,13 @@ export function FinancialMetrics() {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) {
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
+      if (!db) {
         setTransactions([]);
         setLoading(false);
         return;
@@ -45,7 +50,7 @@ export function FinancialMetrics() {
     fetchTransactions();
   }, []);
 
-  const formatCurrency = (value: any) => `R$ ${Number(value).toFixed(2)}`;
+  const formatCurrency = (value: any) => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
 
   const getMetrics = () => {
     if (!transactions.length) return {};
@@ -159,126 +164,135 @@ export function FinancialMetrics() {
           </Text>
         </CardHeader>
         <CardContent>
-          <View style={styles.metric}>
-            <View style={styles.metricHeader}>
-              <FontAwesome6 name="arrow-trend-up" size={20} color="rgb(0, 255, 0)" />
-              <Text style={[styles.metricLabel, { color: "rgb(0, 255, 0)" }]}>
-                Entradas do mês
-              </Text>
-            </View>
-            <Text style={[styles.metricValue, { color: "rgb(0, 255, 0)" }]}>
-              {formatCurrency(metrics.currentMonthEntradas || 0)}
-            </Text>
-            <Text
-              style={[
-                styles.metricTrend,
-                {
-                  color:
-                    typeof metrics.entradaTrend === "number" &&
-                    metrics.entradaTrend >= 0
-                      ? "rgb(0, 255, 0)"
-                      : "rgb(255, 0, 0)",
-                },
-              ]}
-            >
-              {typeof metrics.entradaTrend === "number" ? (
-                <>
-                  {metrics.entradaTrend >= 0 ? (
-                    <FontAwesome6 name="arrow-up" size={16} color="rgb(0, 255, 0)" />
-                  ) : (
-                    <FontAwesome6 name="arrow-down" size={16} color="rgb(255, 0, 0)" />
-                  )}
-                  <Text
-                    style={{
-                      color: metrics.entradaTrend >= 0 ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)",
-                      marginLeft: 4,
-                    }}
-                  >
-                    {Math.abs(metrics.entradaTrend).toFixed(1)}% vs mês anterior
+          {/* Container com linha vertical contínua */}
+          <View style={styles.gridContainer}>
+            {/* Linha vertical que atravessa tudo */}
+            <View style={styles.verticalDividerFull} />
+            
+            {/* Entradas e Saídas lado a lado */}
+            <View style={styles.metricsRow}>
+              {/* Entradas */}
+              <View style={styles.metricColumn}>
+                <View style={styles.metricHeader}>
+                  <FontAwesome6 name="arrow-trend-up" size={20} color="rgb(0, 255, 0)" />
+                  <Text style={[styles.metricLabel, { color: "rgb(0, 255, 0)" }]}>
+                    Entradas do mês
                   </Text>
-                </>
-              ) : (
-                <Text>Sem dados do mês anterior</Text>
-              )}
-            </Text>
-          </View>
+                </View>
+                <Text style={[styles.metricValue, { color: "rgb(0, 255, 0)" }]}>
+                  {formatCurrency(metrics.currentMonthEntradas || 0)}
+                </Text>
+                {typeof metrics.entradaTrend === "number" ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center", marginTop: 8 }}>
+                    {metrics.entradaTrend > 0 ? (
+                      <FontAwesome6 name="arrow-up" size={16} color="rgb(0, 255, 0)" />
+                    ) : metrics.entradaTrend < 0 ? (
+                      <FontAwesome6 name="arrow-down" size={16} color="rgb(255, 0, 0)" />
+                    ) : (
+                      <FontAwesome6 name="minus" size={16} color="rgb(0, 255, 0)" />
+                    )}
+                    <Text
+                      style={[
+                        styles.metricTrend,
+                        {
+                          color: metrics.entradaTrend >= 0 ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)",
+                          textAlign: "left",
+                        },
+                      ]}
+                    >
+                      {Math.abs(metrics.entradaTrend).toFixed(1).replace('.0', '').replace('.', ',')}% comparado ao{"\n"}mês anterior
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.metricTrend}>Sem dados do mês anterior</Text>
+                )}
+              </View>
 
-          <View style={styles.metric}>
-            <View style={styles.metricHeader}>
-              <FontAwesome6 name="arrow-trend-down" size={20} color="rgb(255, 0, 0)" />
-              <Text style={[styles.metricLabel, { color: "rgb(255, 0, 0)" }]}>
-                Saídas do mês
-              </Text>
-            </View>
-            <Text style={[styles.metricValue, { color: "rgb(255, 0, 0)" }]}>
-              {formatCurrency(metrics.currentMonthSaidas || 0)}
-            </Text>
-            <Text
-              style={[
-                styles.metricTrend,
-                {
-                  color:
-                    typeof metrics.saidaTrend === "number" &&
-                    metrics.saidaTrend <= 0
-                      ? "rgb(0, 255, 0)"
-                      : "rgb(255, 0, 0)",
-                },
-              ]}
-            >
-              {typeof metrics.saidaTrend === "number" ? (
-                <>
-                  {metrics.saidaTrend <= 0 ? (
-                    <FontAwesome6 name="arrow-down" size={16} color="rgb(255, 0, 0)" />
-                  ) : (
-                    <FontAwesome6 name="arrow-up" size={16} color="rgb(0, 255, 0)" />
-                  )}
-                  <Text
-                    style={{
-                      color: metrics.saidaTrend <= 0 ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)",
-                      marginLeft: 4,
-                    }}
-                  >
-                    {Math.abs(metrics.saidaTrend).toFixed(1)}% vs mês anterior
+              <View style={{ width: 1 }} />
+
+              {/* Saídas */}
+              <View style={styles.metricColumn}>
+                <View style={styles.metricHeader}>
+                  <FontAwesome6 name="arrow-trend-down" size={20} color="rgb(255, 0, 0)" />
+                  <Text style={[styles.metricLabel, { color: "rgb(255, 0, 0)" }]}>
+                    Saídas do mês
                   </Text>
-                </>
-              ) : (
-                <Text>Sem dados do mês anterior</Text>
-              )}
-            </Text>
-          </View>
+                </View>
+                <Text style={[styles.metricValue, { color: "rgb(255, 0, 0)" }]}>
+                  {formatCurrency(metrics.currentMonthSaidas || 0)}
+                </Text>
+                {typeof metrics.saidaTrend === "number" ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center", marginTop: 8 }}>
+                    {metrics.saidaTrend > 0 ? (
+                      <FontAwesome6 name="arrow-up" size={16} color="rgb(255, 0, 0)" />
+                    ) : metrics.saidaTrend < 0 ? (
+                      <FontAwesome6 name="arrow-down" size={16} color="rgb(0, 255, 0)" />
+                    ) : (
+                      <FontAwesome6 name="minus" size={16} color="rgb(0, 255, 0)" />
+                    )}
+                    <Text
+                      style={[
+                        styles.metricTrend,
+                        {
+                          color: metrics.saidaTrend > 0 ? "rgb(255, 0, 0)" : "rgb(0, 255, 0)",
+                          textAlign: "left",
+                        },
+                      ]}
+                    >
+                      {Math.abs(metrics.saidaTrend).toFixed(1).replace('.0', '').replace('.', ',')}% comparado ao{"\n"}mês anterior
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.metricTrend}>Sem dados do mês anterior</Text>
+                )}
+              </View>
+            </View>
 
-          {metrics.mostUsedPayment && metrics.mostUsedPayment !== "N/A" ? (
-            <View style={styles.metric}>
-              <View style={styles.metricHeader}>
-                <FontAwesome6
-                  name="credit-card"
-                  size={18}
-                  color={theme.foreground}
-                />
+            {/* Linha horizontal separadora */}
+            <View style={styles.horizontalDivider} />
+
+            {/* Método mais usado e Total de transações lado a lado */}
+            <View style={styles.metricsRow}>
+              {/* Método mais usado */}
+              <View style={styles.metricColumn}>
                 <Text style={[styles.metricLabel, { color: theme.foreground }]}>
                   Método mais usado
                 </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center" }}>
+                  <Text style={[styles.metricValue, { color: theme.foreground }]}>
+                    {metrics.mostUsedPayment || "N/A"}
+                  </Text>
+                  {metrics.mostUsedPayment === "Pix" && (
+                    <FontAwesome6 name="pix" size={22} color={theme.foreground} />
+                  )}
+                  {metrics.mostUsedPayment === "Cartão" && (
+                    <FontAwesome6 name="credit-card" size={22} color={theme.foreground} />
+                  )}
+                  {metrics.mostUsedPayment === "Boleto" && (
+                    <FontAwesome6 name="barcode" size={22} color={theme.foreground} />
+                  )}
+                </View>
               </View>
-              <Text style={[styles.metricValue, { color: theme.foreground }]}>
-                {metrics.mostUsedPayment}
-              </Text>
-            </View>
-          ) : null}
 
-          <View style={styles.metric}>
-            <View style={styles.metricHeader}>
-              <MaterialIcons
-                name="library-books"
-                size={20}
-                color={theme.foreground}
-              />
-              <Text style={[styles.metricLabel, { color: theme.foreground }]}>
-                Total de transações
-              </Text>
+              <View style={{ width: 1 }} />
+
+              {/* Total de transações */}
+              <View style={styles.metricColumn}>
+                <Text style={[styles.metricLabel, { color: theme.foreground }]}>
+                  Total de transações
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center" }}>
+                  <Text style={[styles.metricValue, { color: theme.foreground }]}>
+                    {metrics.totalTransactions ?? 0}
+                  </Text>
+                  <MaterialIcons
+                    name="library-books"
+                    size={22}
+                    color={theme.foreground}
+                  />
+                </View>
+              </View>
             </View>
-            <Text style={[styles.metricValue, { color: theme.foreground }]}>
-              {metrics.totalTransactions ?? 0}
-            </Text>
           </View>
         </CardContent>
       </Card>
@@ -288,19 +302,52 @@ export function FinancialMetrics() {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
     borderRadius: 12,
   },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
-  description: { fontSize: 14, marginBottom: 16 },
-  metric: { marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: "bold" },
+  description: { fontSize: 14, marginBottom: 10 },
+  gridContainer: {
+    position: "relative",
+  },
+  verticalDividerFull: {
+    position: "absolute",
+    width: 1,
+    backgroundColor: "#ccc",
+    top: 0,
+    bottom: 0,
+    left: "50%",
+    marginLeft: -0.5,
+    zIndex: 1,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+    alignItems: "stretch",
+  },
+  metricColumn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  divider: {
+    width: 1,
+    backgroundColor: "#ccc",
+    marginHorizontal: 12,
+    alignSelf: "stretch",
+  },
+  horizontalDivider: {
+    height: 1,
+    backgroundColor: "#ccc",
+    marginVertical: 12,
+  },
   metricHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 4,
-    gap: 8,
+    gap: 10,
+    justifyContent: "center",
   },
-  metricLabel: { fontSize: 14, fontWeight: "500" },
-  metricValue: { fontSize: 22, fontWeight: "bold" },
-  metricTrend: { fontSize: 12 },
+  metricLabel: { fontSize: 14, fontWeight: "500", textAlign: "center" },
+  metricValue: { fontSize: 22, fontWeight: "bold", textAlign: "center" },
+  metricTrend: { fontSize: 12, textAlign: "center" },
 });

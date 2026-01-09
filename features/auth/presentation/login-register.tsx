@@ -31,16 +31,50 @@ export default function LoginRegisterScreen() {
   const handleAuth = async () => {
     setLoading(true);
     console.log('[LoginRegister] handleAuth start', { isLogin, email });
+    
+    // Validações antes de tentar autenticar
+    if (!email.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Erro",
+        text2: "Por favor, insira seu e-mail",
+      });
+      setLoading(false);
+      return;
+    }
+    
+    if (!password.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Erro",
+        text2: "Por favor, insira sua senha",
+      });
+      setLoading(false);
+      return;
+    }
+    
+    if (!isLogin && (!name.trim() || !surname.trim())) {
+      Toast.show({
+        type: "error",
+        text1: "Erro",
+        text2: "Por favor, preencha todos os campos",
+      });
+      setLoading(false);
+      return;
+    }
+    
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth!, email, password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(
-          auth,
+          auth!,
           email,
           password
         );
         const user = userCredential.user;
+        // Salva dados extras na coleção users (garante que o db existe)
+        if (!db) throw new Error("Firestore não está disponível");
         await setDoc(doc(db, "users", user.uid), {
           name,
           surname,
@@ -63,10 +97,30 @@ export default function LoginRegisterScreen() {
       }
     } catch (err: any) {
       console.error('[LoginRegister] auth error', err);
+      
+      // Mensagens de erro amigáveis
+      let errorMessage = "Ocorreu um erro. Tente novamente.";
+      
+      if (err.code === 'auth/missing-password') {
+        errorMessage = "Por favor, insira sua senha";
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = "E-mail inválido";
+      } else if (err.code === 'auth/user-not-found') {
+        errorMessage = "Usuário não encontrado";
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = "Senha incorreta";
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = "Este e-mail já está cadastrado";
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = "A senha deve ter pelo menos 6 caracteres";
+      } else if (err.code === 'auth/network-request-failed') {
+        errorMessage = "Erro de conexão. Verifique sua internet";
+      }
+      
       Toast.show({
         type: "error",
         text1: "Erro ao autenticar",
-        text2: err.message,
+        text2: errorMessage,
       });
     } finally {
       setLoading(false);

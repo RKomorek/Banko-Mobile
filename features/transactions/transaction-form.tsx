@@ -220,6 +220,14 @@ export default function TransactionForm({
 
   const uploadReceiptToFirebase = async (localUri: string | null) => {
     if (!localUri) return null;
+    if (!storage) {
+      Toast.show({
+        type: "error",
+        text1: "Erro ao fazer upload do recibo",
+        text2: "Storage não está disponível",
+      });
+      return null;
+    }
     setUploading(true);
     try {
       const response = await fetch(localUri);
@@ -244,6 +252,10 @@ export default function TransactionForm({
   };
 
   const getAccountDocRef = async (userId: string) => {
+    if (!db) {
+      console.warn('Firestore não disponível');
+      return null;
+    }
     const q = query(collection(db, "accounts"), where("user_id", "==", userId));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
@@ -275,8 +287,10 @@ export default function TransactionForm({
   const onSubmit: SubmitHandler<TransactionFormValues> = async (data) => {
     try {
       setUploading(true);
+      if (!auth) throw new Error("Auth não está disponível!");
       const user = auth.currentUser;
       if (!user) throw new Error("Usuário não autenticado!");
+      if (!db) throw new Error("Firestore não está disponível!");
       const amount = Math.abs(data.amount) * (isNegative ? -1 : 1);
 
       let receiptUrl = mergedInitialValues?.receiptUrl || null;
