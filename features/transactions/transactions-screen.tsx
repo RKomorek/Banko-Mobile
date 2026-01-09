@@ -2,8 +2,16 @@ import { useTransactionsStore } from "@/shared/stores/transactions-store";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import Animated, {
+  FadeIn,
+  Layout,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming
+} from "react-native-reanimated";
 import { RootStackParamList } from "../../app/(tabs)/_layout";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
@@ -42,6 +50,21 @@ export default function TransactionsScreen() {
   const [showFilters, setShowFilters] = useState(true);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
+  // Animações para os filtros
+  const filterHeight = useSharedValue(showFilters ? 1 : 0);
+  const filterOpacity = useSharedValue(showFilters ? 1 : 0);
+
+  useEffect(() => {
+    filterHeight.value = withSpring(showFilters ? 1 : 0, { damping: 15 });
+    filterOpacity.value = withTiming(showFilters ? 1 : 0, { duration: 200 });
+  }, [showFilters]);
+
+  const filterAnimatedStyle = useAnimatedStyle(() => ({
+    maxHeight: filterHeight.value * 500,
+    opacity: filterOpacity.value,
+    overflow: 'hidden',
+  }));
+
 
   if (loading && transactions.length === 0) {
     return (
@@ -70,7 +93,7 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           </View>
           {showFilters && (
-          <>
+          <Animated.View style={filterAnimatedStyle}>
           {/* Filtros de tipo */}
           <View style={styles.filtersRow}>
             {typeOptions.map(option => (
@@ -142,7 +165,7 @@ export default function TransactionsScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </>
+        </Animated.View>
         )}
         </View>
         {/* DatePickers */}
@@ -176,14 +199,18 @@ export default function TransactionsScreen() {
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.itemRow,
-                { backgroundColor: theme.card, borderColor: theme.input }
-              ]}
-              onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
+          renderItem={({ item, index }) => (
+            <Animated.View
+              entering={FadeIn.delay(index * 50).springify()}
+              layout={Layout.springify()}
             >
+              <TouchableOpacity
+                style={[
+                  styles.itemRow,
+                  { backgroundColor: theme.card, borderColor: theme.input }
+                ]}
+                onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
+              >
               {/* Linha 1: Descrição | Tipo */}
               <View style={styles.rowTop}>
                 <Text 
@@ -228,6 +255,7 @@ export default function TransactionsScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
+            </Animated.View>
           )}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.mutedForeground }]}>Nenhuma transação encontrada.</Text>}
           onEndReached={loadMore}
