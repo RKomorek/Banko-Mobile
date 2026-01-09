@@ -1,14 +1,13 @@
+import { useTransactionsStore } from "@/shared/stores/transactions-store";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { collection, getDocs, orderBy, query, Timestamp, where } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList } from "../../app/(tabs)/_layout";
-import { auth, db } from "../../firebase";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
+import { useTransactions } from "./presentation/hooks/use-transactions";
 
 const typeOptions = [
   { label: "Todos", value: "all" },
@@ -28,60 +27,23 @@ export default function TransactionsScreen() {
   const theme = Colors[colorScheme ?? "light"];
   const fontFamily = Fonts.sans;
 
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [entryExitFilter, setEntryExitFilter] = useState("all");
-  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const { transactions, loading, loadingMore, loadMore } = useTransactions();
+  const { 
+    typeFilter, 
+    entryExitFilter, 
+    dateRange,
+    setTypeFilter,
+    setEntryExitFilter,
+    setDateRange
+  } = useTransactionsStore();
+
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        const user = auth.currentUser;
-        if (!user) return;
 
-        let constraints = [
-          where("userId", "==", user.uid),
-          orderBy("date", "desc"),
-        ];
-
-        if (typeFilter !== "all") {
-          constraints.push(where("type", "==", typeFilter));
-        }
-        if (entryExitFilter === "entrada") {
-          constraints.push(where("isNegative", "==", false));
-        }
-        if (entryExitFilter === "saida") {
-          constraints.push(where("isNegative", "==", true));
-        }
-        if (dateRange.start) {
-          constraints.push(where("date", ">=", Timestamp.fromDate(new Date(dateRange.start))));
-        }
-        if (dateRange.end) {
-          const endDate = new Date(dateRange.end);
-          endDate.setHours(23, 59, 59, 999);
-          constraints.push(where("date", "<=", Timestamp.fromDate(endDate)));
-        }
-
-        const q = query(collection(db, "transactions"), ...constraints);
-        const snap = await getDocs(q);
-        const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setTransactions(list);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [typeFilter, entryExitFilter, dateRange.start, dateRange.end]);
-
-  if (loading) {
+  if (loading && transactions.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator color={theme.primary} />
@@ -90,16 +52,15 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <View style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerFixed}>
           <Text style={[styles.title, { color: theme.foreground, fontFamily }]}>Transações</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical:8 }}>
-
-              <Text style={[styles.filterTitle, { color: theme.foreground }]}>Filtros</Text>
+          <View style={styles.filterHeaderRow}>
+              <Text style={[styles.filterTitle, { color: showFilters ? theme.primary : theme.mutedForeground }]}>Filtros</Text>
             <TouchableOpacity
               onPress={() => setShowFilters(prev => !prev)}
-              style={{ marginTop: -10, marginRight: 5 }}
+              style={styles.filterToggleButton}
             >
               <IconSymbol
                 name="filter"
@@ -111,7 +72,7 @@ export default function TransactionsScreen() {
           {showFilters && (
           <>
           {/* Filtros de tipo */}
-          <View style={{ flexDirection: "row", marginBottom: 12 }}>
+          <View style={styles.filtersRow}>
             {typeOptions.map(option => (
               <TouchableOpacity
                 key={option.value}
@@ -125,14 +86,14 @@ export default function TransactionsScreen() {
                 onPress={() => setTypeFilter(option.value)}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }}>
+                <Text style={[styles.filterText, { color: typeFilter === option.value ? theme.primaryForeground : theme.foreground }]}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
           {/* Filtros de entrada/saída */}
-          <View style={{ flexDirection: "row", marginBottom: 12 }}>
+          <View style={styles.filtersRow}>
             {entryExitOptions.map(option => (
               <TouchableOpacity
                 key={option.value}
@@ -146,20 +107,20 @@ export default function TransactionsScreen() {
                 onPress={() => setEntryExitFilter(option.value)}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }}>
+                <Text style={[styles.filterText, { color: entryExitFilter === option.value ? theme.primaryForeground : theme.foreground }]}>
                   {option.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
           {/* Filtros de data com DatePicker */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+          <View style={styles.dateButtonsRow}>
             <TouchableOpacity
               style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
               onPress={() => setShowStartPicker(true)}
             >
-              <Text style={{ color: theme.mutedForeground }}>De</Text>
-              <Text style={{ color: theme.foreground, marginLeft: 8 }}>
+              <Text style={styles.dateLabel}>De</Text>
+              <Text style={[styles.dateValue, { color: theme.foreground }]}>
                 {dateRange.start ? new Date(dateRange.start).toLocaleDateString("pt-BR") : "Data inicial"}
               </Text>
             </TouchableOpacity>
@@ -167,8 +128,8 @@ export default function TransactionsScreen() {
               style={[styles.dateButton, { borderColor: theme.border, backgroundColor: theme.card }]}
               onPress={() => setShowEndPicker(true)}
             >
-              <Text style={{ color: theme.mutedForeground }}>Até</Text>
-              <Text style={{ color: theme.foreground, marginLeft: 8 }}>
+              <Text style={styles.dateLabel}>Até</Text>
+              <Text style={[styles.dateValue, { color: theme.foreground }]}>
                 {dateRange.end ? new Date(dateRange.end).toLocaleDateString("pt-BR") : "Data final"}
               </Text>
             </TouchableOpacity>
@@ -193,7 +154,7 @@ export default function TransactionsScreen() {
             onChange={(_, selectedDate) => {
               setShowStartPicker(false);
               if (selectedDate) {
-                setDateRange(prev => ({ ...prev, start: selectedDate.toISOString().slice(0, 10) }));
+                setDateRange({ ...dateRange, start: selectedDate.toISOString().slice(0, 10) });
               }
             }}
           />
@@ -206,7 +167,7 @@ export default function TransactionsScreen() {
             onChange={(_, selectedDate) => {
               setShowEndPicker(false);
               if (selectedDate) {
-                setDateRange(prev => ({ ...prev, end: selectedDate.toISOString().slice(0, 10) }));
+                setDateRange({ ...dateRange, end: selectedDate.toISOString().slice(0, 10) });
               }
             }}
           />
@@ -214,7 +175,7 @@ export default function TransactionsScreen() {
         {/* Lista */}
         <FlatList
           data={transactions}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[
@@ -223,9 +184,27 @@ export default function TransactionsScreen() {
               ]}
               onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
             >
-              {/* Data */}
-              <View style={styles.cell}>
-                <Text style={[styles.itemDate, { color: theme.foreground }]}>
+              {/* Linha 1: Descrição | Tipo */}
+              <View style={styles.rowTop}>
+                <Text 
+                  style={[styles.itemTitle, { color: theme.foreground }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.title}
+                </Text>
+                <Text style={{
+                  color: item.amount && item.isNegative ? theme.destructive : theme.constructive,
+                  fontSize: 15,
+                  fontWeight: "600",
+                  marginLeft: 8
+                }}>
+                  {item.type === "pix" ? "Pix" : item.type === "cartao" ? "Cartão" : "Boleto"}
+                </Text>
+              </View>
+              {/* Linha 2: Data | Valor */}
+              <View style={styles.rowBottom}>
+                <Text style={[styles.itemDate, { color: theme.mutedForeground }]}>
                   {item.date
                     ? new Date(
                         item.date.seconds
@@ -234,19 +213,6 @@ export default function TransactionsScreen() {
                       ).toLocaleDateString("pt-BR")
                     : ""}
                 </Text>
-              </View>
-              {/* Descrição */}
-              <View style={styles.cell}>
-                <Text style={[styles.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
-              </View>
-              {/* Tipo */}
-              <View style={styles.cell}>
-                <Text style={{ color: theme.foreground }}>
-                  {item.type === "pix" ? "Pix" : item.type === "cartao" ? "Cartão" : "Boleto"}
-                </Text>
-              </View>
-              {/* Valor */}
-              <View style={styles.cell}>
                 <Text style={[
                   styles.itemAmount,
                   {
@@ -257,23 +223,31 @@ export default function TransactionsScreen() {
                   }
                 ]}>
                   {item.amount
-                    ? (item.isNegative ? "- " : "+ ") +
-                      Math.abs(item.amount)?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                    ? Math.abs(item.amount)?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                     : "-"}
                 </Text>
               </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.mutedForeground }]}>Nenhuma transação encontrada.</Text>}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                <ActivityIndicator color={theme.primary} />
+              </View>
+            ) : null
+          }
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1, padding: 16 },
+  safeArea: { flex: 1, paddingTop: 52 },
+  container: { flex: 1, padding: 10 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   headerFixed: {
     paddingBottom: 0,
@@ -294,11 +268,35 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 6,
+    marginBottom: 8,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  filtersRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  filterHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 8,
+  },
+  filterToggleButton: {
+    marginTop: -10,
+    marginRight: 5,
+  },
+  dateButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
   dateButton: {
     flexDirection: "row",
@@ -306,10 +304,20 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 6,
     marginBottom: 8,
+  },
+  dateLabel: {
+    color: "#999",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  dateValue: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
   clearButton: {
     borderWidth: 1,
@@ -320,21 +328,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
     borderRadius: 8,
     borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    marginBottom: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
   },
-  cell: {
-    minWidth: 70,
-    marginRight: 12,
-    justifyContent: "center",
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  itemTitle: { fontSize: 16},
-  itemAmount: { fontSize: 16, marginTop: 2, textAlign: "right", minWidth: 110 },
-  itemDate: { fontSize: 14 },
+  rowBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemTitle: { fontSize: 16, fontWeight: "500", flex: 1 },
+  itemAmount: { fontSize: 15, fontWeight: "600", textAlign: "right" },
+  itemDate: { fontSize: 16, fontWeight: "500" },
   empty: { textAlign: "center", marginTop: 32 },
 });

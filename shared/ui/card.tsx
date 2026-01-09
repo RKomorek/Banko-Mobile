@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     flexDirection: "column",
     gap: 12,
+    overflow: "hidden",
   },
   cardHeader: {
     paddingHorizontal: 16,

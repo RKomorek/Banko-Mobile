@@ -1,4 +1,4 @@
-import { DashboardData } from '@/features/dashboard/domain/entities/dashboard';
+import { DashboardData } from '@/features/dashboard/domain/entities/entities';
 import { BalanceRepository } from '@/features/dashboard/infrastructure/repositories/balance-repository';
 import { TransactionsRepository } from '@/features/dashboard/infrastructure/repositories/transactions-repository';
 import { UserRepository } from '@/features/dashboard/infrastructure/repositories/user-repository';

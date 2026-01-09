@@ -1,18 +1,13 @@
-import { onAuthStateChanged } from 'firebase/auth';
-import { useEffect, useState } from 'react';
-import { auth } from '../../../firebase';
+import { useAuthStore } from '@/shared/stores';
+import { useEffect } from 'react';
 
 export function useAuthState() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading, initializeAuth } = useAuthStore();
+  
   useEffect(() => {
-    console.log('[useAuthState] subscribing to auth state');
-    const unsub = onAuthStateChanged(auth, u => {
-      console.log('[useAuthState] auth changed, user=', u);
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
+    console.log('[useAuthState] initializing auth');
+    initializeAuth();
+  }, [initializeAuth]);
+  
   return { user, loading };
 }

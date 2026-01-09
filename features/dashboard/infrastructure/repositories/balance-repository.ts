@@ -6,19 +6,34 @@ export class BalanceRepository {
     try {
       const user = auth.currentUser;
       if (!user) return '0.00';
-
-      const accQ = query(
-        collection(db, 'accounts'),
-        where('user_id', '==', user.uid)
-      );
-      const accSnap = await getDocs(accQ);
-
-      if (!accSnap.empty) {
-        return String(accSnap.docs[0].data().saldo || '0.00');
+      if (!db) {
+        console.warn('Firestore não disponível');
+        return '0.00';
       }
-      return '0.00';
+
+      // Buscar todas as transações do usuário
+      const txQ = query(
+        collection(db, 'transactions'),
+        where('userId', '==', user.uid)
+      );
+      const txSnap = await getDocs(txQ);
+
+      // Calcular saldo baseado nas transações
+      let balance = 0;
+      txSnap.docs.forEach(doc => {
+        const tx = doc.data();
+        const amount = Math.abs(tx.amount || 0);
+        
+        if (tx.isNegative) {
+          balance -= amount; // Subtrai saídas
+        } else {
+          balance += amount; // Soma entradas
+        }
+      });
+
+      return balance.toFixed(2);
     } catch (error) {
-      console.error('Error fetching balance:', error);
+      console.error('Erro ao buscar saldo:', error);
       throw error;
     }
   }
