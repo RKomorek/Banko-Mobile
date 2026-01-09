@@ -23,25 +23,34 @@ export const useAuthStore = create<AuthState>((set) => {
     setLoading: (loading) => set({ loading }),
     initializeAuth: () => {
       if (unsubscribe) {
-        console.log('[AuthStore] Already initialized');
+        console.log('[AuthStore] Já inicializado');
         return;
       }
-      console.log('[AuthStore] Initializing auth listener');
+      console.log('[AuthStore] Inicializando listener de autenticação');
+      
+      if (!auth) {
+        console.error('[AuthStore] Auth não inicializado');
+        set({ loading: false });
+        return;
+      }
       
       // Fallback timeout: se não receber resposta em 5s, desliga loading
       const timeout = setTimeout(() => {
-        console.log('[AuthStore] Timeout reached, setting loading to false');
+        console.log('[AuthStore] Timeout atingido, definindo loading como false');
         set({ loading: false });
       }, 5000);
       
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        console.log('[AuthStore] Auth state changed:', firebaseUser?.email || 'no user');
+        console.log('[AuthStore] Estado de autenticação alterado:', firebaseUser?.email || 'sem usuário');
         clearTimeout(timeout);
         set({ user: firebaseUser, loading: false });
       });
     },
     logout: async () => {
       try {
+        if (!auth) {
+          throw new Error("Auth não inicializado");
+        }
         await signOut(auth);
         set({ user: null });
       } catch (error) {
