@@ -28,7 +28,7 @@ export function useTransactions() {
   } = useTransactionsStore();
 
   const fetchTransactions = async (loadMore = false) => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) {
       setLoading(false);
       setLoadingMore(false);
