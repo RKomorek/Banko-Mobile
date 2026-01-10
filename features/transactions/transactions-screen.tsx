@@ -1,7 +1,6 @@
 import { useTransactionsStore } from "@/shared/stores/transactions-store";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import Animated, {
@@ -12,8 +11,6 @@ import Animated, {
   withSpring,
   withTiming
 } from "react-native-reanimated";
-import { RootStackParamList } from "../../app/(tabs)/_layout";
-import { router } from "expo-router";
 import { Colors, Fonts } from "../../shared/constants/theme";
 import { IconSymbol } from "../../shared/ui/icon-symbol";
 import { useTransactions } from "./presentation/hooks/use-transactions";
@@ -209,7 +206,7 @@ export default function TransactionsScreen() {
                   styles.itemRow,
                   { backgroundColor: theme.card, borderColor: theme.input }
                 ]}
-                onPress={() => navigation.navigate("transaction-form", { initialValues: item })}
+                onPress={() => router.navigate({ pathname: "/transaction-form", params: { initialValues: JSON.stringify(item) } })}
               >
               {/* Linha 1: Descrição | Tipo */}
               <View style={styles.rowTop}>
